@@ -1,0 +1,8 @@
+PyQt6
+spotipy
+pyperclip
+plyer
+python-dotenv
+google-api-python-client
+google-auth-oauthlib
+feedparser

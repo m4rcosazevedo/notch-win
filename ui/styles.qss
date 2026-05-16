@@ -1,0 +1,173 @@
+/* ═══════════════════════════════════════════════════
+   NOTCH WIN — Stylesheet
+   Modo escuro por padrão; modo claro via propriedade
+   NotchWindow[mode="light"]
+   ═══════════════════════════════════════════════════ */
+
+/* ── Pill ─────────────────────────────────────────── */
+#pill {
+    background-color: rgba(14, 14, 14, 248);
+    border-top-left-radius:    0px;
+    border-top-right-radius:   0px;
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius:20px;
+    border-left:   1px solid rgba(255,255,255,0.07);
+    border-right:  1px solid rgba(255,255,255,0.07);
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    border-top: none;
+}
+
+/* ── Sections ─────────────────────────────────────── */
+.section {
+    background: transparent;
+    border-radius: 12px;
+    padding: 2px 8px;
+}
+.section:hover {
+    background-color: rgba(255,255,255,0.05);
+}
+NotchWindow[mode="light"] .section:hover {
+    background-color: rgba(0,0,0,0.05);
+}
+
+/* ── Labels — dark mode ───────────────────────────── */
+QLabel {
+    color: #e2e2e2;
+    font-family: "SF Pro Text", "Segoe UI Variable", "Segoe UI", sans-serif;
+    font-size: 12px;
+    background: transparent;
+}
+QLabel#track-title {
+    font-weight: 600;
+    font-size: 12px;
+    color: #ffffff;
+    letter-spacing: 0.1px;
+}
+QLabel#track-artist {
+    color: rgba(255,255,255,0.45);
+    font-size: 11px;
+}
+QLabel#pomodoro-time {
+    font-size: 14px;
+    font-weight: 700;
+    font-family: "SF Mono", "Cascadia Code", "Consolas", monospace;
+    color: #ff6b6b;
+    letter-spacing: 1.5px;
+}
+QLabel#pomodoro-time[mode="break"]      { color: #30d158; }
+QLabel#pomodoro-time[mode="long_break"] { color: #0a84ff; }
+QLabel#clip-count {
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffd60a;
+    min-width: 16px;
+}
+
+/* ── Labels — light mode ──────────────────────────── */
+NotchWindow[mode="light"] QLabel              { color: #1c1c1e; }
+NotchWindow[mode="light"] QLabel#track-title  { color: #000000; }
+NotchWindow[mode="light"] QLabel#track-artist { color: rgba(0,0,0,0.50); }
+NotchWindow[mode="light"] QLabel#clip-count   { color: #9a7000; }
+/* Pomodoro time keeps its semantic color in light mode */
+NotchWindow[mode="light"] QLabel#pomodoro-time             { color: #d63031; }
+NotchWindow[mode="light"] QLabel#pomodoro-time[mode="break"]      { color: #00b050; }
+NotchWindow[mode="light"] QLabel#pomodoro-time[mode="long_break"] { color: #0055cc; }
+
+/* ── Buttons — dark mode ──────────────────────────── */
+QPushButton {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.65);
+    font-family: "SF Pro Text", "Segoe UI Symbol", "Segoe UI", sans-serif;
+    font-size: 13px;
+    border-radius: 11px;
+    min-width:  22px; max-width:  22px;
+    min-height: 22px; max-height: 22px;
+    padding: 0px;
+}
+QPushButton:hover   { background: rgba(255,255,255,0.13); color: #fff; }
+QPushButton:pressed { background: rgba(255,255,255,0.22); color: #fff; }
+
+QPushButton#play-btn { color: rgba(255,255,255,0.85); font-size: 14px; }
+QPushButton#play-btn:hover { background: rgba(255,255,255,0.16); }
+
+QPushButton#pomo-btn-active {
+    background: rgba(48,209,88,0.18);
+    color: #30d158;
+}
+QPushButton#pomo-btn-active:hover { background: rgba(48,209,88,0.28); }
+
+/* ── Buttons — light mode ─────────────────────────── */
+NotchWindow[mode="light"] QPushButton {
+    color: rgba(0,0,0,0.60);
+}
+NotchWindow[mode="light"] QPushButton:hover {
+    background: rgba(0,0,0,0.09);
+    color: rgba(0,0,0,0.90);
+}
+NotchWindow[mode="light"] QPushButton:pressed {
+    background: rgba(0,0,0,0.15);
+}
+NotchWindow[mode="light"] QPushButton#pomo-btn-active {
+    background: rgba(0,160,60,0.14);
+    color: #00913a;
+}
+
+/* ── Separadores ──────────────────────────────────── */
+#separator {
+    background: rgba(255,255,255,0.10);
+    max-width: 1px; min-width: 1px;
+    margin: 10px 6px;
+}
+NotchWindow[mode="light"] #separator {
+    background: rgba(0,0,0,0.12);
+}
+
+/* ── Context Menu ─────────────────────────────────── */
+QMenu {
+    background-color: rgba(28,28,30,252);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 6px 4px;
+    font-family: "SF Pro Text","Segoe UI",sans-serif;
+    font-size: 12px;
+    color: #e5e5ea;
+}
+QMenu::item {
+    padding: 7px 20px;
+    border-radius: 8px;
+    margin: 1px 4px;
+    color: #e5e5ea;
+}
+QMenu::item:selected  { background: rgba(255,255,255,0.10); color: #fff; }
+QMenu::item:disabled  { color: rgba(255,255,255,0.25); }
+QMenu::separator      { height:1px; background:rgba(255,255,255,0.10); margin:4px 10px; }
+QMenu::indicator      { width: 14px; height: 14px; }
+QMenu::indicator:checked { image: none; }  /* usamos texto ✓ no label */
+
+/* ── Clipboard popup ──────────────────────────────── */
+#clip-popup {
+    background-color: rgba(22,22,24,250);
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.10);
+}
+#clip-popup QLabel {
+    padding: 6px 14px;
+    font-size: 12px;
+    border-radius: 8px;
+    color: #dcdcdc;
+}
+#clip-popup QLabel:hover {
+    background: rgba(255,255,255,0.08);
+    color: #ffffff;
+}
+#clip-clear-btn {
+    color: rgba(255,80,80,0.70);
+    font-size: 11px;
+    padding: 5px 14px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+    border-radius: 0px;
+    min-width: unset; max-width: unset;
+    min-height: unset; max-height: unset;
+}
+#clip-clear-btn:hover { color: #ff453a; background: transparent; }
