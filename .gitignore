@@ -1,0 +1,38 @@
+# ── Credenciais e dados sensíveis ─────────────────────────────────────────────
+.env
+client_secrets.json
+.youtube_token.json
+
+# ── Dados persistidos localmente (não fazem sentido no repositório) ────────────
+.notch_settings.json
+.notch_notes.txt
+.notch_todo.json
+.youtube_subs.json
+
+# ── Ambiente virtual Python ────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+
+# ── Cache do Python ────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+
+# ── Build / distribuição ───────────────────────────────────────────────────────
+dist/
+build/
+*.exe
+*.msi
+*.spec
+
+# ── IDEs ──────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ── Sistema operacional ────────────────────────────────────────────────────────
+Thumbs.db
+desktop.ini
+.DS_Store
