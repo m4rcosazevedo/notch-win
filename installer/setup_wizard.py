@@ -382,7 +382,7 @@ class SetupWizard(tk.Tk):
         self.after(0, self._chk_copy.loading)
         try:
             dest.mkdir(parents=True, exist_ok=True)
-            for item in ["main.py", "modules", "ui", "requirements.txt", ".env.example"]:
+            for item in ["main.py", "config.py", "modules", "ui", "requirements.txt", ".env.example"]:
                 src = _APP_SRC / item
                 if src.is_dir():
                     shutil.copytree(src, dest / item, dirs_exist_ok=True)

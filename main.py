@@ -1,5 +1,7 @@
 import sys
 import os
+# garante que o diretório do projeto esteja no path, independente de como o script é chamado
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import json
 import base64
 import math
@@ -29,93 +31,18 @@ from PyQt6.QtGui import (
 
 from modules.pomodoro import PomodoroModule
 from modules.clipboard import ClipboardModule
+from ui.pomodoro_widget import PomodoroWidget
+from ui.clipboard_widget import ClipboardWidget
 from modules.spotify import SpotifyModule
 from ui.spotify_widget import SpotifyWidget
 from modules.youtube_feed import YouTubeFeedModule
 from ui.settings_window import SettingsWindow
 
-try:
-    from plyer import notification as plyer_notify
-    PLYER_OK = True
-except Exception:
-    PLYER_OK = False
-
-BASE_DIR      = Path(__file__).parent
-QSS_PATH      = BASE_DIR / "ui" / "styles.qss"
-SETTINGS_PATH = BASE_DIR / ".notch_settings.json"
-NOTES_PATH    = BASE_DIR / ".notch_notes.txt"
-TODO_PATH     = BASE_DIR / ".notch_todo.json"
-
-try:
-    import winsound as _winsound
-    _WINSOUND_OK = True
-except ImportError:
-    _winsound = None
-    _WINSOUND_OK = False
-
-# ── Paleta de cores ───────────────────────────────────────────────────────────
-# (key, label, pill_bg, border, accent_rgb, mode, icon_rgba)
-COLOR_PRESETS = [
-    # ── Dark ──────────────────────────────────────────────────────────────────
-    ("space-gray", "Space Gray",  "rgba(14,14,14,248)",    "rgba(255,255,255,0.07)", (180,180,180), "dark",  (220,220,220,190)),
-    ("graphite",   "Graphite",    "rgba(28,28,30,248)",    "rgba(255,255,255,0.10)", (200,200,200), "dark",  (220,220,220,190)),
-    ("midnight",   "Midnight",    "rgba(10,16,38,248)",    "rgba(80,130,255,0.18)",  ( 74,122,255), "dark",  (180,210,255,200)),
-    ("ocean",      "Ocean",       "rgba(5,20,35,248)",     "rgba(0,160,230,0.18)",   (  0,170,240), "dark",  (150,220,255,200)),
-    ("viridian",   "Viridian",    "rgba(8,26,16,248)",     "rgba(48,210,88,0.18)",   ( 48,209, 88), "dark",  (170,240,190,200)),
-    ("forest",     "Forest",      "rgba(5,20,10,248)",     "rgba(50,180,80,0.15)",   ( 50,180, 80), "dark",  (160,230,170,200)),
-    ("grape",      "Grape",       "rgba(24,10,44,248)",    "rgba(190,100,255,0.18)", (155, 89,182), "dark",  (210,170,255,200)),
-    ("rosewood",   "Rosewood",    "rgba(38,8,14,248)",     "rgba(255,70,90,0.18)",   (255, 69, 58), "dark",  (255,180,180,200)),
-    ("ember",      "Ember",       "rgba(30,12,5,248)",     "rgba(255,120,40,0.20)",  (255,120, 40), "dark",  (255,205,155,200)),
-    ("obsidian",   "Obsidian",    "rgba(18,18,22,248)",    "rgba(150,150,255,0.12)", (120,120,200), "dark",  (200,200,230,190)),
-    # ── Light ─────────────────────────────────────────────────────────────────
-    ("arctic",     "Arctic",      "rgba(245,248,252,235)", "rgba(0,0,0,0.12)",       ( 80,120,200), "light", ( 30, 30, 40,200)),
-    ("sand",       "Sand",        "rgba(248,242,228,235)", "rgba(0,0,0,0.10)",       (160,120, 60), "light", ( 60, 45, 20,200)),
-    ("blossom",    "Blossom",     "rgba(252,236,244,235)", "rgba(200,80,140,0.20)",  (200, 80,140), "light", (100, 20, 60,200)),
-    ("sky",        "Sky",         "rgba(228,242,255,235)", "rgba(60,130,230,0.20)",  ( 60,130,230), "light", ( 20, 50,130,200)),
-    ("mint",       "Mint",        "rgba(228,248,236,235)", "rgba(40,180,100,0.20)",  ( 40,180,100), "light", ( 10, 80, 40,200)),
-    ("lavender",   "Lavender",    "rgba(236,232,252,235)", "rgba(130,100,220,0.20)", (130,100,220), "light", ( 60, 30,130,200)),
-    ("cream",      "Cream",       "rgba(252,248,238,235)", "rgba(160,130,60,0.15)",  (160,130, 60), "light", ( 80, 65, 20,200)),
-]
-
-# ── Presets de duração do Pomodoro ────────────────────────────────────────────
-POMO_PRESETS = [
-    ("15 min",  15,  5, 10),
-    ("20 min",  20,  5, 10),
-    ("25 min",  25,  5, 15),
-    ("30 min",  30, 10, 20),
-    ("45 min",  45, 15, 25),
-    ("60 min",  60, 20, 30),
-]
-
-# ── QSS do context menu ───────────────────────────────────────────────────────
-MENU_QSS = """
-QMenu {
-    background-color: rgba(28,28,30,252);
-    border: 1px solid rgba(255,255,255,0.13);
-    border-radius: 12px;
-    padding: 6px 4px;
-    font-family: "SF Pro Text","Segoe UI",sans-serif;
-    font-size: 12px;
-    color: #e5e5ea;
-}
-QMenu::item {
-    padding: 7px 20px 7px 14px;
-    border-radius: 8px;
-    margin: 1px 4px;
-    color: #e5e5ea;
-}
-QMenu::item:selected { background: rgba(255,255,255,0.10); color:#fff; }
-QMenu::item:disabled { color: rgba(255,255,255,0.28); }
-QMenu::separator     { height:1px; background:rgba(255,255,255,0.10); margin:4px 10px; }
-"""
-
-
-def notify(title: str, message: str):
-    if PLYER_OK:
-        try:
-            plyer_notify.notify(title=title, message=message, app_name="Notch", timeout=4)
-        except Exception:
-            pass
+from config import (
+    COLOR_PRESETS, POMO_PRESETS, MENU_QSS, notify,
+    QSS_PATH, SETTINGS_PATH, NOTES_PATH, TODO_PATH,
+    _winsound, _WINSOUND_OK,
+)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -3011,8 +2938,9 @@ class NotchWindow(QWidget):
         self._yt_status     = "Não conectado"
         self._drag_pos: QPoint | None = None
 
-        self._pomodoro  = PomodoroModule()
+        self._pomo_w    = PomodoroWidget()
         self._clipboard = ClipboardModule()
+        self._clip_w    = ClipboardWidget(self._clipboard)
         self._spotify   = SpotifyModule()
         self._spotify_w = SpotifyWidget(self._spotify)
         self._yt_module = YouTubeFeedModule()
@@ -3036,7 +2964,6 @@ class NotchWindow(QWidget):
         self._position_top_center()
         self._setup_tray()
 
-        self._pomodoro_label.setText(self._pomodoro.display())
         self._yt_module.start_polling()
 
         self._is_slid_out = False
@@ -3058,9 +2985,9 @@ class NotchWindow(QWidget):
 
         spotify_w   = self._spotify_w
         sep1        = self._vline()
-        pomodoro_w  = self._build_pomodoro_section()
+        pomodoro_w  = self._pomo_w
         sep2        = self._vline()
-        clipboard_w = self._build_clipboard_section()
+        clipboard_w = self._clip_w
         sep3        = self._vline()
         youtube_w   = self._build_youtube_section()
         sep4        = self._vline()
@@ -3111,49 +3038,6 @@ class NotchWindow(QWidget):
         line.setObjectName("separator")
         line.setFrameShape(QFrame.Shape.VLine)
         return line
-
-    def _build_pomodoro_section(self) -> QWidget:
-        w = QWidget(); w.setProperty("class", "section")
-        h = QHBoxLayout(w)
-        h.setContentsMargins(4, 0, 4, 0); h.setSpacing(6)
-
-        self._pomo_icon_btn = _icon_btn(_ic_timer)
-        self._pomo_icon_btn.setToolTip("Alterar duração do Pomodoro")
-        self._pomo_icon_btn.clicked.connect(self._show_pomo_picker)
-
-        self._pomodoro_label = QLabel("25:00")
-        self._pomodoro_label.setObjectName("pomodoro-time")
-        self._pomodoro_label.setFixedWidth(48)
-
-        self._pomo_toggle = _icon_btn(_ic_play)
-        self._pomo_reset  = _icon_btn(_ic_reset)
-
-        h.addWidget(self._pomo_icon_btn)
-        h.addWidget(self._pomodoro_label)
-        h.addWidget(self._pomo_toggle)
-        h.addWidget(self._pomo_reset)
-        return w
-
-    def _build_clipboard_section(self) -> QWidget:
-        w = QWidget(); w.setProperty("class", "section")
-        h = QHBoxLayout(w)
-        h.setContentsMargins(4, 0, 4, 0); h.setSpacing(6)
-
-        clip_icon = QLabel("⊞")
-        clip_icon.setFixedWidth(16)
-        clip_icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        clip_icon.setStyleSheet("font-size:15px; color: rgba(255,255,255,0.45);")
-
-        self._clip_count = QLabel("0")
-        self._clip_count.setObjectName("clip-count")
-        self._clip_count.setFixedWidth(18)
-
-        self._clip_btn = _icon_btn(_ic_clip_open)
-
-        h.addWidget(clip_icon)
-        h.addWidget(self._clip_count)
-        h.addWidget(self._clip_btn)
-        return w
 
     def _build_youtube_section(self) -> QWidget:
         w = QWidget(); w.setProperty("class", "section")
@@ -3250,18 +3134,8 @@ class NotchWindow(QWidget):
     # ── Signals ───────────────────────────────────────────────────────────────
 
     def _connect_signals(self):
-        # Pomodoro
-        self._pomodoro.tick.connect(self._on_pomo_tick)
-        self._pomodoro.mode_changed.connect(self._on_pomo_mode)
-        self._pomodoro.session_done.connect(lambda msg: notify("Pomodoro", msg))
-        self._pomo_toggle.clicked.connect(self._toggle_pomodoro)
-        self._pomo_reset.clicked.connect(self._pomodoro.reset)
-
-        # Clipboard
-        self._clipboard.history_changed.connect(
-            lambda: self._clip_count.setText(str(self._clipboard.count()))
-        )
-        self._clip_btn.clicked.connect(self._show_clipboard)
+        # Clipboard popup
+        self._clip_w.open_popup.connect(self._show_clipboard)
 
         # YouTube
         self._yt_module.status_changed.connect(self._on_yt_status)
@@ -3286,32 +3160,9 @@ class NotchWindow(QWidget):
 
     # ── Slots ─────────────────────────────────────────────────────────────────
 
-    def _on_pomo_tick(self, text: str):
-        self._pomodoro_label.setText(text)
-
-    def _on_pomo_mode(self, mode: str):
-        self._pomodoro_label.setProperty("mode", mode)
-        self._pomodoro_label.style().unpolish(self._pomodoro_label)
-        self._pomodoro_label.style().polish(self._pomodoro_label)
-        if not self._pomodoro.running:
-            _refresh_icon(self._pomo_toggle, _ic_play, color=self._icon_color)
-            self._pomo_toggle.setObjectName("")
-            self._pomo_toggle.style().unpolish(self._pomo_toggle)
-            self._pomo_toggle.style().polish(self._pomo_toggle)
-
-    def _toggle_pomodoro(self):
-        self._pomodoro.toggle()
-        if self._pomodoro.running:
-            _refresh_icon(self._pomo_toggle, _ic_pause, color=self._icon_color)
-            self._pomo_toggle.setObjectName("pomo-btn-active")
-        else:
-            _refresh_icon(self._pomo_toggle, _ic_play, color=self._icon_color)
-            self._pomo_toggle.setObjectName("")
-        self._pomo_toggle.style().unpolish(self._pomo_toggle)
-        self._pomo_toggle.style().polish(self._pomo_toggle)
-
     def _show_clipboard(self):
-        pos = self._clip_btn.mapToGlobal(QPoint(0, self._clip_btn.height() + 6))
+        btn = self._clip_w.clip_btn
+        pos = btn.mapToGlobal(QPoint(0, btn.height() + 6))
         self._clip_popup.show_at(pos)
 
     def _show_youtube(self):
@@ -3429,39 +3280,6 @@ class NotchWindow(QWidget):
 
     # ── Pomodoro time picker ──────────────────────────────────────────────────
 
-    def _show_pomo_picker(self):
-        menu = QMenu(self)
-        menu.setStyleSheet(MENU_QSS)
-
-        header = QAction("⏱  Duração do Pomodoro", self)
-        header.setEnabled(False)
-        menu.addAction(header)
-        menu.addSeparator()
-
-        current_work = self._pomodoro.work_minutes()
-        for label, work, brk, long_brk in POMO_PRESETS:
-            mark = "✓  " if work == current_work else "    "
-            action = QAction(f"{mark}{label}", self)
-            action.setToolTip(f"Foco: {work}min · Pausa: {brk}min · Pausa longa: {long_brk}min")
-            action.triggered.connect(
-                lambda _, w=work, b=brk, lb=long_brk: self._set_pomo_duration(w, b, lb)
-            )
-            menu.addAction(action)
-
-        btn_pos = self._pomo_icon_btn.mapToGlobal(
-            QPoint(self._pomo_icon_btn.width() // 2, self._pomo_icon_btn.height() + 4)
-        )
-        menu.exec(btn_pos)
-
-    def _set_pomo_duration(self, work: int, brk: int, long_brk: int):
-        self._pomodoro.set_durations(work, brk, long_brk)
-        if self._pomodoro.running:
-            self._pomodoro.reset()
-            _refresh_icon(self._pomo_toggle, _ic_play, color=self._icon_color)
-            self._pomo_toggle.setObjectName("")
-            self._pomo_toggle.style().unpolish(self._pomo_toggle)
-            self._pomo_toggle.style().polish(self._pomo_toggle)
-
     # ── Cor da barra ──────────────────────────────────────────────────────────
 
     def _load_settings(self):
@@ -3527,32 +3345,26 @@ class NotchWindow(QWidget):
         self._stress_popup.apply_theme(bg, border, mode)
         self._settings_win.apply_theme(bg, border, mode)
 
-        clip_lbl_color = "rgba(0,0,0,0.40)" if mode == "light" else "rgba(255,255,255,0.45)"
-        for child in self.findChildren(QLabel):
-            if child.text() == "⊞":
-                child.setStyleSheet(f"font-size:15px; color: {clip_lbl_color};")
+        self._clip_w.update_label_color(mode)
 
         if save:
             self._save_settings()
 
     def _refresh_all_icons(self):
         c = self._icon_color
-        fn = _ic_pause if self._pomodoro.running else _ic_play
-        self._spotify_w.refresh_icons(c, is_playing=self._pomodoro.running)
-        _refresh_icon(self._pomo_icon_btn, _ic_timer,     color=c)
-        _refresh_icon(self._pomo_reset,    _ic_reset,     color=c)
-        _refresh_icon(self._clip_btn,      _ic_clip_open, color=c)
-        _refresh_icon(self._yt_btn,        _ic_youtube,   color=c)
-        _refresh_icon(self._calc_btn,      _ic_calc,      color=c)
-        _refresh_icon(self._notes_btn,     _ic_notes,     color=c)
-        _refresh_icon(self._alarm_btn,     _ic_alarm,     color=c)
-        _refresh_icon(self._quotes_btn,    _ic_quotes,    color=c)
-        _refresh_icon(self._todo_btn,      _ic_todo,      color=c)
-        _refresh_icon(self._photos_btn,    _ic_photo,     color=c)
-        _refresh_icon(self._hcalc_btn,     _ic_hcalc,    color=c)
-        _refresh_icon(self._pokemon_btn,   _ic_pokemon,  color=c)
-        _refresh_icon(self._stress_btn,    _ic_stress,   color=c)
-        _refresh_icon(self._pomo_toggle,   fn,            color=c)
+        self._pomo_w.refresh_icons(c)
+        self._clip_w.refresh_icons(c)
+        self._spotify_w.refresh_icons(c, is_playing=self._pomo_w.running)
+        _refresh_icon(self._yt_btn,      _ic_youtube, color=c)
+        _refresh_icon(self._calc_btn,    _ic_calc,    color=c)
+        _refresh_icon(self._notes_btn,   _ic_notes,   color=c)
+        _refresh_icon(self._alarm_btn,   _ic_alarm,   color=c)
+        _refresh_icon(self._quotes_btn,  _ic_quotes,  color=c)
+        _refresh_icon(self._todo_btn,    _ic_todo,    color=c)
+        _refresh_icon(self._photos_btn,  _ic_photo,   color=c)
+        _refresh_icon(self._hcalc_btn,   _ic_hcalc,  color=c)
+        _refresh_icon(self._pokemon_btn, _ic_pokemon, color=c)
+        _refresh_icon(self._stress_btn,  _ic_stress,  color=c)
 
     # ── Context menu ──────────────────────────────────────────────────────────
 
