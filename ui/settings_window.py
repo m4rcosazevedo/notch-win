@@ -78,6 +78,7 @@ class SettingsWindow(QWidget):
         ("photos",    "🖼  Fotos"),
         ("hcalc",     "⏱  Cal. Horas"),
         ("pokemon",   "⬟  Pokémon"),
+        ("stress",    "💢  Anti-Stress"),
     ]
 
     def __init__(self, sections: dict, yt_status: str = "Não conectado", parent=None):
