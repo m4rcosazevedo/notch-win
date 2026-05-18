@@ -30,6 +30,7 @@ from PyQt6.QtGui import (
 from modules.pomodoro import PomodoroModule
 from modules.clipboard import ClipboardModule
 from modules.spotify import SpotifyModule
+from ui.spotify_widget import SpotifyWidget
 from modules.youtube_feed import YouTubeFeedModule
 from ui.settings_window import SettingsWindow
 
@@ -121,57 +122,10 @@ def notify(title: str, message: str):
 # Ícones vetoriais (estilo macOS SF Symbols)
 # ══════════════════════════════════════════════════════════════════════════════
 
-_DEFAULT_DARK  = QColor(220, 220, 220, 190)
-_DEFAULT_LIGHT = QColor( 30,  30,  40, 200)
-
-
-def _make_icon(draw_fn, size: int = 22, color: QColor = None) -> QPixmap:
-    px = QPixmap(size, size)
-    px.fill(QColor(0, 0, 0, 0))
-    p = QPainter(px)
-    p.setRenderHint(QPainter.RenderHint.Antialiasing)
-    draw_fn(p, size, color or _DEFAULT_DARK)
-    p.end()
-    return px
-
-
-def _icon_btn(draw_fn, size: int = 22, color: QColor = None) -> QPushButton:
-    btn = QPushButton()
-    btn.setFixedSize(size, size)
-    px = _make_icon(draw_fn, size, color)
-    btn.setIcon(QIcon(px))
-    btn.setIconSize(btn.size())
-    btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
-    return btn
-
-
-def _refresh_icon(btn: QPushButton, draw_fn, size: int = 22, color: QColor = None):
-    px = _make_icon(draw_fn, size, color)
-    btn.setIcon(QIcon(px))
-    btn.setIconSize(btn.size())
-
-
-def _ic_prev(p: QPainter, s: int, c: QColor):
-    p.setBrush(QBrush(c)); p.setPen(Qt.PenStyle.NoPen)
-    p.drawRoundedRect(3, 4, 3, s - 8, 1.5, 1.5)
-    p.drawPolygon(QPolygonF([QPointF(s-4,4), QPointF(7, s/2), QPointF(s-4, s-4)]))
-
-
-def _ic_next(p: QPainter, s: int, c: QColor):
-    p.setBrush(QBrush(c)); p.setPen(Qt.PenStyle.NoPen)
-    p.drawRoundedRect(s-6, 4, 3, s-8, 1.5, 1.5)
-    p.drawPolygon(QPolygonF([QPointF(4,4), QPointF(s-7, s/2), QPointF(4, s-4)]))
-
-
-def _ic_play(p: QPainter, s: int, c: QColor):
-    p.setBrush(QBrush(c)); p.setPen(Qt.PenStyle.NoPen)
-    p.drawPolygon(QPolygonF([QPointF(5,3), QPointF(s-3, s/2), QPointF(5, s-3)]))
-
-
-def _ic_pause(p: QPainter, s: int, c: QColor):
-    p.setBrush(QBrush(c)); p.setPen(Qt.PenStyle.NoPen)
-    p.drawRoundedRect(4,   3, 4, s-6, 2, 2)
-    p.drawRoundedRect(s-8, 3, 4, s-6, 2, 2)
+from ui.icons import (
+    _DEFAULT_DARK, _DEFAULT_LIGHT, _make_icon, _icon_btn, _refresh_icon,
+    _ic_prev, _ic_next, _ic_play, _ic_pause,
+)
 
 
 def _ic_reset(p: QPainter, s: int, c: QColor):
@@ -3060,6 +3014,7 @@ class NotchWindow(QWidget):
         self._pomodoro  = PomodoroModule()
         self._clipboard = ClipboardModule()
         self._spotify   = SpotifyModule()
+        self._spotify_w = SpotifyWidget(self._spotify)
         self._yt_module = YouTubeFeedModule()
 
         self._clip_popup   = ClipboardPopup(self._clipboard)
@@ -3101,7 +3056,7 @@ class NotchWindow(QWidget):
         row.setContentsMargins(16, 0, 16, 0)
         row.setSpacing(6)
 
-        spotify_w   = self._build_spotify_section()
+        spotify_w   = self._spotify_w
         sep1        = self._vline()
         pomodoro_w  = self._build_pomodoro_section()
         sep2        = self._vline()
@@ -3156,34 +3111,6 @@ class NotchWindow(QWidget):
         line.setObjectName("separator")
         line.setFrameShape(QFrame.Shape.VLine)
         return line
-
-    def _build_spotify_section(self) -> QWidget:
-        w = QWidget(); w.setProperty("class", "section")
-        h = QHBoxLayout(w)
-        h.setContentsMargins(4, 0, 4, 0); h.setSpacing(6)
-
-        info = QVBoxLayout(); info.setSpacing(1)
-        self._track_title = QLabel("Spotify")
-        self._track_title.setObjectName("track-title")
-        self._track_title.setFixedHeight(17)
-        self._track_title.setMaximumWidth(155)
-        self._track_artist = QLabel("Não conectado")
-        self._track_artist.setObjectName("track-artist")
-        self._track_artist.setFixedHeight(14)
-        self._track_artist.setMaximumWidth(155)
-        info.addWidget(self._track_title)
-        info.addWidget(self._track_artist)
-
-        self._prev_btn = _icon_btn(_ic_prev)
-        self._play_btn = _icon_btn(_ic_play)
-        self._play_btn.setObjectName("play-btn")
-        self._next_btn = _icon_btn(_ic_next)
-
-        h.addLayout(info)
-        h.addWidget(self._prev_btn)
-        h.addWidget(self._play_btn)
-        h.addWidget(self._next_btn)
-        return w
 
     def _build_pomodoro_section(self) -> QWidget:
         w = QWidget(); w.setProperty("class", "section")
@@ -3330,13 +3257,6 @@ class NotchWindow(QWidget):
         self._pomo_toggle.clicked.connect(self._toggle_pomodoro)
         self._pomo_reset.clicked.connect(self._pomodoro.reset)
 
-        # Spotify
-        self._spotify.track_updated.connect(self._on_track_update)
-        self._spotify.error.connect(lambda msg: self._track_artist.setText(msg[:40]))
-        self._play_btn.clicked.connect(self._spotify.play_pause)
-        self._prev_btn.clicked.connect(self._spotify.prev_track)
-        self._next_btn.clicked.connect(self._spotify.next_track)
-
         # Clipboard
         self._clipboard.history_changed.connect(
             lambda: self._clip_count.setText(str(self._clipboard.count()))
@@ -3389,18 +3309,6 @@ class NotchWindow(QWidget):
             self._pomo_toggle.setObjectName("")
         self._pomo_toggle.style().unpolish(self._pomo_toggle)
         self._pomo_toggle.style().polish(self._pomo_toggle)
-
-    def _on_track_update(self, info):
-        fm_t = self._track_title.fontMetrics()
-        fm_a = self._track_artist.fontMetrics()
-        self._track_title.setText(
-            fm_t.elidedText(info.title or "Nenhuma música", Qt.TextElideMode.ElideRight, 155)
-        )
-        self._track_artist.setText(
-            fm_a.elidedText(info.artist or "", Qt.TextElideMode.ElideRight, 155)
-        )
-        _refresh_icon(self._play_btn, _ic_pause if info.is_playing else _ic_play,
-                      color=self._icon_color)
 
     def _show_clipboard(self):
         pos = self._clip_btn.mapToGlobal(QPoint(0, self._clip_btn.height() + 6))
@@ -3629,8 +3537,8 @@ class NotchWindow(QWidget):
 
     def _refresh_all_icons(self):
         c = self._icon_color
-        _refresh_icon(self._prev_btn,      _ic_prev,      color=c)
-        _refresh_icon(self._next_btn,      _ic_next,      color=c)
+        fn = _ic_pause if self._pomodoro.running else _ic_play
+        self._spotify_w.refresh_icons(c, is_playing=self._pomodoro.running)
         _refresh_icon(self._pomo_icon_btn, _ic_timer,     color=c)
         _refresh_icon(self._pomo_reset,    _ic_reset,     color=c)
         _refresh_icon(self._clip_btn,      _ic_clip_open, color=c)
@@ -3644,8 +3552,6 @@ class NotchWindow(QWidget):
         _refresh_icon(self._hcalc_btn,     _ic_hcalc,    color=c)
         _refresh_icon(self._pokemon_btn,   _ic_pokemon,  color=c)
         _refresh_icon(self._stress_btn,    _ic_stress,   color=c)
-        fn = _ic_pause if self._pomodoro.running else _ic_play
-        _refresh_icon(self._play_btn,      fn,            color=c)
         _refresh_icon(self._pomo_toggle,   fn,            color=c)
 
     # ── Context menu ──────────────────────────────────────────────────────────
