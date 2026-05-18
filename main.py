@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
     QScrollArea, QTextEdit, QLineEdit, QCheckBox,
     QFileDialog, QSpinBox,
 )
-from PyQt6.QtCore import Qt, QPoint, QPointF, QRectF, QLineF, QUrl, QEvent
+from PyQt6.QtCore import Qt, QPoint, QPointF, QRectF, QLineF, QUrl, QEvent, QTimer, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import (
     QIcon, QAction, QCursor, QPixmap, QPainter,
     QColor, QBrush, QPen, QPolygonF, QDesktopServices,
@@ -3084,6 +3084,9 @@ class NotchWindow(QWidget):
         self._pomodoro_label.setText(self._pomodoro.display())
         self._yt_module.start_polling()
 
+        self._is_slid_out = False
+        self._setup_autohide()
+
     # ── UI ────────────────────────────────────────────────────────────────────
 
     def _build_ui(self):
@@ -3730,6 +3733,74 @@ class NotchWindow(QWidget):
     def mouseReleaseEvent(self, event):
         self._drag_pos = None
 
+    # ── Auto-hide (estilo macOS Dock) ─────────────────────────────────────────
+
+    def _setup_autohide(self):
+        self._hide_timer = QTimer(self)
+        self._hide_timer.setSingleShot(True)
+        self._hide_timer.setInterval(10_000)
+        self._hide_timer.timeout.connect(self._slide_out)
+
+        self._peek_poll = QTimer(self)
+        self._peek_poll.setInterval(50)
+        self._peek_poll.timeout.connect(self._check_peek)
+
+        self._slide_anim = QPropertyAnimation(self, b"pos")
+        self._slide_anim.setDuration(300)
+
+        self._hide_timer.start()
+
+    def enterEvent(self, event):
+        self._hide_timer.stop()
+        if self._is_slid_out:
+            self._slide_in()
+        super().enterEvent(event)
+
+    def leaveEvent(self, event):
+        if not self._is_slid_out and not self._any_popup_visible():
+            self._hide_timer.start()
+        super().leaveEvent(event)
+
+    def _any_popup_visible(self) -> bool:
+        return any(p.isVisible() for p in [
+            self._clip_popup, self._yt_popup, self._notes_popup,
+            self._alarm_popup, self._quotes_popup, self._todo_popup,
+            self._slideshow, self._hcalc_popup, self._pokemon_popup,
+            self._stress_popup, self._settings_win,
+        ])
+
+    def _slide_out(self):
+        if self._is_slid_out or self._any_popup_visible():
+            return
+        self._is_slid_out = True
+        self._slide_anim.stop()
+        self._slide_anim.setEasingCurve(QEasingCurve.Type.InCubic)
+        self._slide_anim.setStartValue(self.pos())
+        self._slide_anim.setEndValue(QPoint(self.pos().x(), -self.height()))
+        self._slide_anim.start()
+        self._peek_poll.start()
+
+    def _slide_in(self):
+        if not self._is_slid_out:
+            return
+        self._is_slid_out = False
+        self._peek_poll.stop()
+        self._slide_anim.stop()
+        self._slide_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._slide_anim.setStartValue(self.pos())
+        self._slide_anim.setEndValue(QPoint(self.pos().x(), 0))
+        self._slide_anim.start()
+        self._hide_timer.start()
+
+    def _check_peek(self):
+        if not self._is_slid_out:
+            self._peek_poll.stop()
+            return
+        cursor = QCursor.pos()
+        geo = self.geometry()
+        if cursor.y() <= 2 and geo.left() <= cursor.x() <= geo.right():
+            self._slide_in()
+
     # ── System tray ───────────────────────────────────────────────────────────
 
     def _make_tray_icon(self) -> QIcon:
@@ -3765,10 +3836,16 @@ class NotchWindow(QWidget):
         self._tray.show()
 
     def _toggle_visibility(self):
-        if self.isVisible():
+        if self.isVisible() and not self._is_slid_out:
             self.hide()
         else:
-            self.show(); self.raise_()
+            self._is_slid_out = False
+            self._peek_poll.stop()
+            self._slide_anim.stop()
+            self.move(self.pos().x(), 0)
+            self.show()
+            self.raise_()
+            self._hide_timer.start()
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
