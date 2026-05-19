@@ -1,53 +1,103 @@
-# Notch Win
+# Notch Win 🚀
 
-Barra de produtividade estilo "notch" do Mac para Windows, feita com Python + PyQt6.
+Uma barra de produtividade elegante e funcional inspirada no "Notch" do macOS, projetada especificamente para Windows. Construída com **Python** e **PyQt6**, ela flutua no topo da sua tela, oferecendo acesso instantâneo a ferramentas essenciais enquanto mantém sua área de trabalho limpa.
 
-## Funcionalidades
+---
 
-- **Spotify** — nome da faixa atual + controles (anterior, play/pause, próxima)
-- **Pomodoro** — timer 25/5/15 min com notificações nativas
-- **Clipboard manager** — histórico dos últimos 15 itens copiados
+## ✨ Funcionalidades
 
-## Instalação
+### 🎵 Multimídia e Produtividade
+- **Spotify Hub**: Visualize a faixa atual e controle sua música (Play/Pause, Anterior, Próxima) diretamente do Notch.
+- **Pomodoro Timer**: Ciclos de foco configuráveis (15, 20, 25, 30, 45 ou 60 min) com notificações nativas.
+- **Clipboard Manager**: Histórico inteligente dos últimos itens copiados para acesso rápido.
+- **YouTube Feed**: Acompanhe atualizações do seu feed favorito sem abrir o navegador.
 
-```bash
-cd notch-win
+### 🛠️ Ferramentas Rápidas (Popups)
+Acesso instantâneo com um clique:
+- 📝 **Notas Rápidas**: Bloco de notas persistente para lembretes instantâneos.
+- ✅ **Tarefas (Todo)**: Lista de afazeres simples e eficaz.
+- ⏰ **Despertador**: Configure alarmes rápidos para não perder compromissos.
+- 🧮 **Calculadoras**: Acesso à calculadora do sistema e uma exclusiva **Calculadora de Horas** (ideal para somar tempos de projetos).
+- 🖼️ **Galeria**: Slideshow de fotos flutuante.
+- 💡 **Motivação**: Citações aleatórias para inspirar seu dia.
 
-# Crie um ambiente virtual (recomendado)
-python -m venv .venv
-.venv\Scripts\activate   # Windows
+### 🎮 Diversão e Bem-estar
+- 🐲 **Zona Anti-Stress**: Um mini-game rápido com monstros para relaxar entre tarefas.
+- 🐾 **Pokémon Diário**: Descubra um Pokémon aleatório a qualquer momento.
 
-pip install -r requirements.txt
-```
+---
 
-## Configuração do Spotify
+## 🎨 Design e Personalização
 
-1. Acesse https://developer.spotify.com/dashboard
-2. Clique em **Create app**
-3. Defina o Redirect URI como: `http://localhost:8888/callback`
-4. Copie o **Client ID** e **Client Secret**
+- **Auto-Hide Inteligente**: A barra se esconde automaticamente após 10 segundos de inatividade para economizar espaço. Basta encostar o mouse no topo da tela para ela reaparecer.
+- **Temas Dinâmicos**: Mais de 17 presets de cores, incluindo:
+  - **Dark**: Space Gray, Graphite, Midnight, Ocean, Forest, Ember, Obsidian, e mais.
+  - **Light**: Arctic, Sand, Sky, Mint, Lavender, etc.
+- **Layout Customizável**: Através da janela de configurações, escolha exatamente quais módulos deseja ver na sua barra.
+- **Surgical Drag**: Clique e arraste para posicionar o Notch onde preferir.
 
-```bash
-cp .env.example .env
-# Edite o .env com suas credenciais
-```
+---
 
-## Executar
+## 🚀 Instalação
 
-```bash
-python main.py
-```
+### Pré-requisitos
+- Python 3.10 ou superior
+- Pip (gerenciador de pacotes)
 
-Na primeira execução o Spotify abrirá o browser para autorização. Após isso o token fica em cache (`.spotify_cache`).
+### Passo a Passo
 
-## Uso
+1. **Clonar o repositório:**
+   ```bash
+   git clone https://github.com/seu-usuario/notch-win.git
+   cd notch-win
+   ```
 
-| Ação | Como |
+2. **Criar e ativar ambiente virtual:**
+   ```bash
+   python -m venv .venv
+   .venv\Scripts\activate
+   ```
+
+3. **Instalar dependências:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+---
+
+## ⚙️ Configuração
+
+### Spotify (Opcional)
+Para habilitar o controle de música:
+1. Vá para o [Spotify Developer Dashboard](https://developer.spotify.com/dashboard).
+2. Crie um App e defina o Redirect URI como: `http://localhost:8888/callback`.
+3. Copie o `Client ID` e o `Client Secret`.
+4. Clique com o botão direito no Notch -> **Configurações** e insira suas credenciais.
+
+### YouTube
+Para o feed do YouTube, você pode configurar sua API Key na mesma janela de configurações.
+
+---
+
+## ⌨️ Atalhos e Uso
+
+| Ação | Comando |
 |---|---|
-| Mover a barra | Clique e arraste |
-| Play/Pause Spotify | Botão ⏸/▶ |
-| Pomodoro iniciar/pausar | Botão ▶/⏸ |
-| Pomodoro resetar | Botão ↺ |
-| Ver clipboard | Botão ▾ → clique no item para copiar |
-| Ocultar/mostrar | Duplo clique no ícone da bandeja |
-| Sair | Botão direito no ícone da bandeja → Sair |
+| **Mostrar/Ocultar** | Encostar o mouse no topo ou Duplo clique no ícone da bandeja |
+| **Menu de Temas** | Clique com o botão direito no corpo da barra |
+| **Mover Barra** | Clique e arraste em qualquer área vazia do Notch |
+| **Configurações** | Botão direito -> Configurações |
+| **Sair** | Botão direito -> Sair |
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+
+- **Python 3**
+- **PyQt6**: Interface gráfica e animações.
+- **Spotipy**: Integração com API do Spotify.
+- **Requests**: Chamadas de API para Pokémon e YouTube.
+- **Plyer**: Notificações nativas do sistema.
+
+---
+Desenvolvido com ❤️ para usuários que amam produtividade e estética.
