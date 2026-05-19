@@ -113,7 +113,7 @@ class _MonsterCanvas(QLabel):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(252, 216)
+        self.setFixedSize(200, 200)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setCursor(QCursor(Qt.CursorShape.CrossCursor))
         self.setStyleSheet("background: rgb(26, 22, 36);")

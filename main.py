@@ -9,7 +9,6 @@ load_dotenv()
 from PyQt6.QtWidgets import QApplication
 from ui.notch_window import NotchWindow
 
-
 def main():
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)

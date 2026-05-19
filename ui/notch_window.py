@@ -75,7 +75,8 @@ class NotchWindow(QWidget):
         self._hcalc_popup   = HoursCalcPopup()
         self._pokemon_popup = PokemonPopup()
         self._stress_popup  = StressPopup()
-        self._settings_win  = SettingsWindow(self._sections_state)
+        self._settings_win = SettingsWindow(self._sections_state)
+        self._sp_status    = "Não configurado"
 
         self._build_ui()
         self._connect_signals()
@@ -174,6 +175,8 @@ class NotchWindow(QWidget):
         self._settings_win.section_toggled.connect(self._on_section_toggled)
         self._settings_win.youtube_connect.connect(self._on_yt_connect)
         self._settings_win.youtube_refresh.connect(self._yt_module.refresh)
+        self._settings_win.spotify_configure.connect(self._on_spotify_configure)
+        self._spotify.status_changed.connect(self._on_spotify_status)
 
     # ── Slots ─────────────────────────────────────────────────────────────────
 
@@ -271,6 +274,13 @@ class NotchWindow(QWidget):
         if secrets_path:
             self._yt_module.set_secrets_path(secrets_path)
         self._yt_module.authenticate()
+
+    def _on_spotify_configure(self, client_id: str, client_secret: str):
+        self._spotify.reconfigure(client_id, client_secret)
+
+    def _on_spotify_status(self, msg: str):
+        self._sp_status = msg
+        self._settings_win.update_spotify_status(msg)
 
     def _on_section_toggled(self, key: str, visible: bool):
         self._sections_state[key] = visible

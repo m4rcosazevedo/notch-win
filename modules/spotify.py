@@ -1,5 +1,6 @@
 import os
 import threading
+from pathlib import Path
 from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 try:
@@ -9,14 +10,15 @@ try:
 except ImportError:
     SPOTIPY_AVAILABLE = False
 
-SCOPE = "user-read-playback-state user-modify-playback-state"
+SCOPE        = "user-read-playback-state user-modify-playback-state"
 POLL_INTERVAL = 3000  # ms
+REDIRECT_URI  = "http://127.0.0.1:8888/callback"
 
 
 class TrackInfo:
     def __init__(self, title="", artist="", is_playing=False):
-        self.title = title
-        self.artist = artist
+        self.title     = title
+        self.artist    = artist
         self.is_playing = is_playing
 
     def __eq__(self, other):
@@ -24,12 +26,13 @@ class TrackInfo:
 
 
 class SpotifyModule(QObject):
-    track_updated = pyqtSignal(object)   # TrackInfo
-    error = pyqtSignal(str)
+    track_updated  = pyqtSignal(object)  # TrackInfo
+    error          = pyqtSignal(str)
+    status_changed = pyqtSignal(str)     # human-readable status
 
     def __init__(self):
         super().__init__()
-        self._sp = None
+        self._sp      = None
         self._current = TrackInfo()
         self._poll_timer = QTimer()
         self._poll_timer.setInterval(POLL_INTERVAL)
@@ -37,14 +40,16 @@ class SpotifyModule(QObject):
 
         if SPOTIPY_AVAILABLE:
             self._init_client()
+        else:
+            self.status_changed.emit("spotipy não instalado")
 
     def _init_client(self):
-        client_id = os.getenv("SPOTIFY_CLIENT_ID", "")
-        client_secret = os.getenv("SPOTIFY_CLIENT_SECRET", "")
-        redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8888/callback")
+        client_id     = os.getenv("SPOTIFY_CLIENT_ID", "").strip()
+        client_secret = os.getenv("SPOTIFY_CLIENT_SECRET", "").strip()
+        redirect_uri  = os.getenv("SPOTIFY_REDIRECT_URI", REDIRECT_URI)
 
         if not client_id or not client_secret:
-            self.error.emit("Configure SPOTIFY_CLIENT_ID e SPOTIFY_CLIENT_SECRET no .env")
+            self.status_changed.emit("Não configurado")
             return
 
         try:
@@ -58,8 +63,27 @@ class SpotifyModule(QObject):
             )
             self._sp = spotipy.Spotify(auth_manager=auth)
             self._poll_timer.start()
+            self.status_changed.emit("Conectando…")
         except Exception as e:
             self.error.emit(f"Spotify: {e}")
+            self.status_changed.emit(f"Erro: {str(e)[:60]}")
+
+    def reconfigure(self, client_id: str, client_secret: str):
+        """Save new credentials to .env and reinitialize the client."""
+        self._poll_timer.stop()
+        self._sp = None
+
+        env_path = Path(".env")
+        _set_env_key(env_path, "SPOTIFY_CLIENT_ID",     client_id)
+        _set_env_key(env_path, "SPOTIFY_CLIENT_SECRET",  client_secret)
+        _set_env_key(env_path, "SPOTIFY_REDIRECT_URI",   REDIRECT_URI)
+
+        os.environ["SPOTIFY_CLIENT_ID"]     = client_id
+        os.environ["SPOTIFY_CLIENT_SECRET"] = client_secret
+        os.environ["SPOTIFY_REDIRECT_URI"]  = REDIRECT_URI
+
+        if SPOTIPY_AVAILABLE:
+            self._init_client()
 
     def _poll(self):
         threading.Thread(target=self._fetch, daemon=True).start()
@@ -81,6 +105,8 @@ class SpotifyModule(QObject):
             if info != self._current:
                 self._current = info
                 self.track_updated.emit(info)
+            if self._current.title:
+                self.status_changed.emit(f"▶ {self._current.title[:40]}")
         except Exception:
             pass
 
@@ -116,3 +142,17 @@ class SpotifyModule(QObject):
     @property
     def available(self) -> bool:
         return SPOTIPY_AVAILABLE and self._sp is not None
+
+
+def _set_env_key(path: Path, key: str, value: str):
+    """Update or append a KEY=value line in a .env file."""
+    lines = path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    found = False
+    for i, line in enumerate(lines):
+        if line.startswith(f"{key}=") or line.startswith(f"{key} ="):
+            lines[i] = f"{key}={value}"
+            found = True
+            break
+    if not found:
+        lines.append(f"{key}={value}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")

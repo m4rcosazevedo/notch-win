@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Notch Win — Assistente de Instalação
-Wizard com 4 etapas: boas-vindas, instalação, Spotify, conclusão.
+Wizard com 3 etapas: boas-vindas, instalação, conclusão.
 Usa apenas tkinter (embutido no Python) para rodar sem dependências.
 """
 
@@ -23,8 +23,7 @@ else:
     _APP_SRC = Path(__file__).resolve().parent.parent  # raiz do notch-win/
 
 DEFAULT_INSTALL  = Path.home() / "AppData" / "Local" / "NotchWin"
-REDIRECT_URI     = "http://127.0.0.1:8888/callback"
-SPOTIFY_DASH_URL = "https://developer.spotify.com/dashboard"
+REDIRECT_URI = "http://127.0.0.1:8888/callback"
 
 # ── Theme ──────────────────────────────────────────────────────────────────────
 BG     = "#141414"
@@ -43,7 +42,7 @@ BF = ("Segoe UI", 11)            # corpo
 CF = ("Consolas", 10)            # código / mono
 LF = ("Segoe UI", 10, "bold")   # label de campo
 
-STEPS = ["Boas-vindas", "Instalação", "Spotify", "Concluir"]
+STEPS = ["Boas-vindas", "Instalação", "Concluir"]
 
 # ── Widgets reutilizáveis ──────────────────────────────────────────────────────
 
@@ -126,10 +125,8 @@ class SetupWizard(tk.Tk):
         self._is_update     = (DEFAULT_INSTALL / "main.py").exists()
 
         # Estado compartilhado entre páginas
-        self.install_dir    = tk.StringVar(value=str(DEFAULT_INSTALL))
-        self.client_id      = tk.StringVar()
-        self.client_secret  = tk.StringVar()
-        self.shortcut       = tk.BooleanVar(value=not self._is_update)
+        self.install_dir = tk.StringVar(value=str(DEFAULT_INSTALL))
+        self.shortcut    = tk.BooleanVar(value=not self._is_update)
         self.autostart      = tk.BooleanVar(value=False)
         self.launch_now     = tk.BooleanVar(value=True)
         self._install_done  = False
@@ -213,7 +210,6 @@ class SetupWizard(tk.Tk):
         self._pages = [
             self._page_welcome(),
             self._page_install(),
-            self._page_spotify(),
             self._page_finish(),
         ]
 
@@ -228,14 +224,8 @@ class SetupWizard(tk.Tk):
         self._btn_next.configure(text="Concluir ✓" if is_last else "Próximo →")
 
     def _next(self):
-        if self._page_idx == 1:
-            if not self._install_done:
-                messagebox.showwarning("Aguarde", "Clique em 'Instalar' e aguarde a conclusão.")
-                return
-            if self._is_update:
-                self._show(3)
-                return
-        if self._page_idx == 2 and not self._validate_spotify():
+        if self._page_idx == 1 and not self._install_done:
+            messagebox.showwarning("Aguarde", "Clique em 'Instalar' e aguarde a conclusão.")
             return
         if self._page_idx == len(self._pages) - 1:
             self._finish()
@@ -267,7 +257,6 @@ class SetupWizard(tk.Tk):
                 "Os arquivos do aplicativo serão atualizados para a nova versão.",
                 "Suas credenciais do Spotify (.env) serão preservadas.",
                 "Seu token do YouTube e configurações não serão alterados.",
-                "A etapa de configuração do Spotify será pulada automaticamente.",
             ]
             for note in notes:
                 row = tk.Frame(f, bg=BG)
@@ -302,7 +291,7 @@ class SetupWizard(tk.Tk):
                          anchor="w").pack(anchor="w")
 
             tk.Label(f,
-                     text="Este assistente instala as dependências e configura o Spotify passo a passo.",
+                     text="Este assistente instala as dependências e prepara o Notch Win para uso.",
                      fg=MUTED, bg=BG, font=("Segoe UI", 10)).pack(anchor="w", pady=(18, 0))
         return f
 
@@ -415,141 +404,16 @@ class SetupWizard(tk.Tk):
             self.after(0, lambda: self._install_btn.configure(
                 text="✓ Instalado", bg=GREEN, fg="#111", state="disabled"
             ))
-            if self._is_update:
-                self._log_append("✓ Atualização concluída! Avançando para conclusão…")
-                self.after(1500, lambda: self._show(3))
-            else:
-                self._log_append("✓ Instalação concluída! Avançando para configuração do Spotify…")
-                self.after(1500, lambda: self._show(2))
+            msg = "✓ Atualização concluída!" if self._is_update else "✓ Instalação concluída!"
+            self._log_append(msg)
+            self.after(1500, lambda: self._show(2))
         else:
             self.after(0, self._chk_deps.fail, "erro — veja o log acima")
             self.after(0, lambda: self._install_btn.configure(
                 state="normal", text="↺  Tentar novamente"
             ))
 
-    # ── Página 2: Spotify ─────────────────────────────────────────────────────
-
-    def _page_spotify(self) -> tk.Frame:
-        outer = tk.Frame(self._body, bg=BG)
-
-        tk.Label(outer, text="Configuração do Spotify",
-                 fg=TEXT, bg=BG, font=TF).pack(anchor="w")
-        tk.Label(outer, text="Siga os 3 passos abaixo para conectar o Notch com o Spotify.",
-                 fg=MUTED, bg=BG, font=SF).pack(anchor="w", pady=(2, 8))
-
-        # ── Área scrollável ───────────────────────────────────────────────────
-        scroll_frame = tk.Frame(outer, bg=BG)
-        scroll_frame.pack(fill="both", expand=True)
-
-        canvas = tk.Canvas(scroll_frame, bg=BG, highlightthickness=0)
-        scrollbar = tk.Scrollbar(scroll_frame, orient="vertical", command=canvas.yview)
-        f = tk.Frame(canvas, bg=BG)
-
-        f.bind("<Configure>",
-               lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
-        win_id = canvas.create_window((0, 0), window=f, anchor="nw")
-        canvas.configure(yscrollcommand=scrollbar.set)
-        # Faz o frame interno acompanhar a largura do canvas
-        canvas.bind("<Configure>",
-                    lambda e: canvas.itemconfig(win_id, width=e.width - 4))
-        # Scroll com roda do mouse (Windows + Linux)
-        canvas.bind_all("<MouseWheel>",
-                        lambda e: canvas.yview_scroll(-1 * (e.delta // 120), "units"))
-        canvas.bind_all("<Button-4>",
-                        lambda e: canvas.yview_scroll(-1, "units"))
-        canvas.bind_all("<Button-5>",
-                        lambda e: canvas.yview_scroll(1, "units"))
-
-        scrollbar.pack(side="right", fill="y")
-        canvas.pack(side="left", fill="both", expand=True)
-
-        # ── Passo 1 ──────────────────────────────────────────────────────────
-        self._spotify_step(f, "1", "Abra o painel de desenvolvedores do Spotify")
-        s1 = tk.Frame(f, bg=CARD, padx=20, pady=8)
-        s1.pack(fill="x", pady=(0, 6))
-        tk.Label(s1, text="Necessário ter conta Spotify (gratuita ou premium).",
-                 fg=MUTED, bg=CARD, font=("Segoe UI", 10)).pack(anchor="w")
-        StyledButton(s1, "Abrir developer.spotify.com  →",
-                     lambda: webbrowser.open(SPOTIFY_DASH_URL),
-                     variant="secondary", pady=5).pack(anchor="w", pady=(5, 0))
-
-        # ── Passo 2 ──────────────────────────────────────────────────────────
-        self._spotify_step(f, "2", 'Clique em "Create app" e preencha:')
-        s2 = tk.Frame(f, bg=CARD, padx=20, pady=8)
-        s2.pack(fill="x", pady=(0, 6))
-
-        fields = [
-            ("App name:",     "Notch Win",   False),
-            ("Description:",  "Qualquer",    False),
-            ("Redirect URI:", REDIRECT_URI,  True),
-            ("APIs:",         "Web API ✓",   False),
-        ]
-        for lbl_text, val, copyable in fields:
-            row = tk.Frame(s2, bg=CARD)
-            row.pack(anchor="w", pady=1)
-            tk.Label(row, text=lbl_text, fg=MUTED, bg=CARD,
-                     font=CF, width=14, anchor="w").pack(side="left")
-            if copyable:
-                CopyLabel(row, val).pack(side="left")
-            else:
-                tk.Label(row, text=val, fg=TEXT, bg=CARD, font=CF).pack(side="left")
-
-        # ── Passo 3 ──────────────────────────────────────────────────────────
-        self._spotify_step(f, "3", 'Vá em "Settings" do app criado e cole as credenciais:')
-        s3 = tk.Frame(f, bg=CARD, padx=20, pady=10)
-        s3.pack(fill="x", pady=(0, 4))
-
-        for label, var, secret in [("Client ID",     self.client_id,     False),
-                                    ("Client Secret", self.client_secret, True)]:
-            row = tk.Frame(s3, bg=CARD)
-            row.pack(fill="x", pady=5)
-            tk.Label(row, text=label, fg=TEXT, bg=CARD, font=LF,
-                     width=14, anchor="w").pack(side="left")
-            entry = tk.Entry(row, textvariable=var, bg=INPUT, fg=TEXT,
-                             relief="flat", font=BF, show="●" if secret else "",
-                             insertbackground=TEXT)
-            entry.pack(side="left", fill="x", expand=True, ipady=6)
-            if secret:
-                self._secret_entry = entry
-                StyledButton(row, "👁", self._toggle_secret,
-                             variant="ghost", padx=8).pack(side="left", padx=(4, 0))
-
-        return outer
-
-    def _spotify_step(self, parent, num: str, title: str):
-        row = tk.Frame(parent, bg=BG)
-        row.pack(fill="x")
-        tk.Label(row, text=num, fg=ACCENT, bg=BG,
-                 font=("Segoe UI", 11, "bold"), width=3).pack(side="left", anchor="n")
-        tk.Label(row, text=title, fg=TEXT, bg=BG,
-                 font=LF, anchor="w").pack(side="left", pady=3)
-
-    def _toggle_secret(self):
-        current = self._secret_entry.cget("show")
-        self._secret_entry.configure(show="" if current else "●")
-
-    def _validate_spotify(self) -> bool:
-        if not self.client_id.get().strip():
-            messagebox.showwarning("Campo obrigatório",
-                                   "Informe o Client ID do Spotify no Passo 3.")
-            return False
-        if not self.client_secret.get().strip():
-            messagebox.showwarning("Campo obrigatório",
-                                   "Informe o Client Secret do Spotify no Passo 3.")
-            return False
-        self._save_env()
-        return True
-
-    def _save_env(self):
-        dest = Path(self.install_dir.get()) / ".env"
-        dest.write_text(
-            f"SPOTIFY_CLIENT_ID={self.client_id.get().strip()}\n"
-            f"SPOTIFY_CLIENT_SECRET={self.client_secret.get().strip()}\n"
-            f"SPOTIFY_REDIRECT_URI={REDIRECT_URI}\n",
-            encoding="utf-8",
-        )
-
-    # ── Página 3: Conclusão ───────────────────────────────────────────────────
+    # ── Página 2: Conclusão ───────────────────────────────────────────────────
 
     def _page_finish(self) -> tk.Frame:
         f = tk.Frame(self._body, bg=BG)
@@ -571,7 +435,7 @@ class SetupWizard(tk.Tk):
                 (self.autostart, "Iniciar automaticamente com o Windows"),
                 (self.launch_now, "Abrir o Notch agora ao clicar em Concluir"),
             ]
-            note_text = "Na primeira execução o Spotify abrirá o browser para autorização."
+            note_text = "Configure o Spotify e o YouTube nas Configurações dentro do app."
 
         opts = tk.Frame(f, bg=BG)
         opts.pack(anchor="w")
