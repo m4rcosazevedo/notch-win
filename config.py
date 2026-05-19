@@ -14,6 +14,7 @@ except ImportError:
     _WINSOUND_OK = False
 
 BASE_DIR      = Path(__file__).parent
+MONSTERS_DIR  = BASE_DIR / "assets" / "monsters"
 QSS_PATH      = BASE_DIR / "ui" / "styles.qss"
 SETTINGS_PATH = BASE_DIR / ".notch_settings.json"
 NOTES_PATH    = BASE_DIR / ".notch_notes.txt"
