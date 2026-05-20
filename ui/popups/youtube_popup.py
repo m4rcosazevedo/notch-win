@@ -4,7 +4,7 @@ import urllib.request
 from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QFrame, QLabel, QPushButton, QScrollArea, QWidget,
 )
-from PyQt6.QtCore import Qt, QPoint, QObject, QEvent, QUrl, pyqtSignal
+from PyQt6.QtCore import Qt, QPoint, QObject, QEvent, QUrl, pyqtSignal, QPropertyAnimation, QEasingCurve
 from PyQt6.QtGui import QCursor, QPixmap, QColor, QDesktopServices
 
 from modules.youtube_feed import YouTubeFeedModule
@@ -56,6 +56,10 @@ class YouTubePopup(BasePopup):
         self._thumb_loader = ThumbnailLoader()
         self._thumb_loader.loaded.connect(self._on_thumb_loaded)
         self._build_ui()
+        
+        # Conecta sinal de início de refresh
+        if hasattr(self._yt, "refresh_started"):
+            self._yt.refresh_started.connect(self._on_refresh_started)
 
     def _build_ui(self):
         outer = QVBoxLayout(self)
@@ -68,10 +72,20 @@ class YouTubePopup(BasePopup):
 
         hdr = QFrame(); hdr.setObjectName("yt-popup-header")
         hh = QHBoxLayout(hdr); hh.setContentsMargins(14, 10, 10, 10)
-        title_lbl = QLabel("▶  YouTube — Inscrições"); title_lbl.setObjectName("yt-popup-title")
+        title_lbl = QLabel("▶  YouTube — Favoritos"); title_lbl.setObjectName("yt-popup-title")
+        
+        self._refresh_btn = QPushButton("↺")
+        self._refresh_btn.setObjectName("yt-popup-refresh")
+        self._refresh_btn.setFixedSize(22, 22)
+        self._refresh_btn.clicked.connect(self._yt.refresh)
+        self._refresh_btn.setToolTip("Atualizar feed")
+        
         close_btn = QPushButton("✕"); close_btn.setObjectName("yt-popup-close")
         close_btn.setFixedSize(22, 22); close_btn.clicked.connect(self.hide)
-        hh.addWidget(title_lbl); hh.addStretch(); hh.addWidget(close_btn)
+        
+        hh.addWidget(title_lbl); hh.addStretch()
+        hh.addWidget(self._refresh_btn); hh.addSpacing(4)
+        hh.addWidget(close_btn)
         v.addWidget(hdr)
 
         self._scroll = QScrollArea()
@@ -107,27 +121,63 @@ class YouTubePopup(BasePopup):
             px = px.copy(0, (px.height() - 60) // 2, px.width(), 60)
         lbl.setPixmap(px)
 
-    def _refresh(self, videos: list = None):
-        if videos is None:
-            videos = self._yt.videos
+    def _on_refresh_started(self):
+        """Mostra estado de carregamento."""
+        if not self.isVisible(): return
+        
+        # Limpa lista e mostra loading
         self._thumb_labels.clear()
         while self._list_layout.count() > 1:
             item = self._list_layout.takeAt(0)
-            if item.widget():
+            if item and item.widget(): item.widget().deleteLater()
+            
+        lbl = QLabel("Buscando vídeos dos seus favoritos...")
+        lbl.setObjectName("yt-loading-lbl")
+        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        lbl.setStyleSheet("padding: 40px; color: #0a84ff; font-weight: 500;")
+        self._list_layout.insertWidget(0, lbl)
+
+    def _refresh(self, videos=None):
+        if videos is None:
+            if hasattr(self, "_yt") and self._yt:
+                videos = self._yt.videos
+            else:
+                videos = []
+        
+        self._thumb_labels.clear()
+        
+        # Limpa o layout de forma segura
+        if not hasattr(self, "_list_layout") or self._list_layout is None:
+            return
+            
+        while self._list_layout.count() > 1:
+            item = self._list_layout.takeAt(0)
+            if item and item.widget():
                 item.widget().deleteLater()
+                
         if not videos:
-            lbl = QLabel("Nenhum vídeo disponível.\nConecte ao YouTube nas Configurações.")
+            if hasattr(self, "_yt") and self._yt and not self._yt.favorites:
+                msg = "Nenhum canal favoritado.\nSelecione até 20 canais nas Configurações."
+            else:
+                msg = "Nenhum vídeo disponível no momento."
+            
+            lbl = QLabel(msg)
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl.setWordWrap(True)
             lbl.setStyleSheet("padding: 24px; color: rgba(128,128,128,0.7); background: transparent;")
             self._list_layout.insertWidget(0, lbl)
             return
+            
         for i, video in enumerate(videos):
-            self._list_layout.insertWidget(i * 2, self._make_video_row(video))
-            if i < len(videos) - 1:
-                sep = QFrame(); sep.setObjectName("yt-row-sep")
-                sep.setFrameShape(QFrame.Shape.HLine)
-                self._list_layout.insertWidget(i * 2 + 1, sep)
+            try:
+                row = self._make_video_row(video)
+                self._list_layout.insertWidget(i * 2, row)
+                if i < len(videos) - 1:
+                    sep = QFrame(); sep.setObjectName("yt-row-sep")
+                    sep.setFrameShape(QFrame.Shape.HLine)
+                    self._list_layout.insertWidget(i * 2 + 1, sep)
+            except Exception as e:
+                print(f"Erro ao renderizar vídeo do YouTube: {e}")
 
     def _make_video_row(self, video) -> QFrame:
         row = QFrame(); row.setObjectName("yt-video-row")
@@ -185,6 +235,13 @@ class YouTubePopup(BasePopup):
                 font-size: 12px; min-width:22px; max-width:22px; min-height:22px; max-height:22px; padding:0px;
             }}
             QPushButton#yt-popup-close:hover {{ background: {close_h}; color: #ff453a; }}
+            
+            QPushButton#yt-popup-refresh {{
+                color: {muted}; background: transparent; border: none; border-radius: 11px;
+                font-size: 14px; min-width:22px; max-width:22px; min-height:22px; max-height:22px; padding:0px;
+            }}
+            QPushButton#yt-popup-refresh:hover {{ background: {hover_bg}; color: #0a84ff; }}
+
             QScrollArea {{ background: transparent; border: none; }}
             QWidget#yt-list {{ background: transparent; }}
             QFrame#yt-video-row {{ background: transparent; border: none; }}

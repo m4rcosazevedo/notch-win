@@ -11,15 +11,20 @@ Uma barra de produtividade elegante e funcional inspirada no "Notch" do macOS, p
 - **Pomodoro Timer**: Ciclos de foco configuráveis (15, 20, 25, 30, 45 ou 60 min) com notificações nativas.
 - **Clipboard Manager**: Histórico inteligente dos últimos itens copiados para acesso rápido.
 - **YouTube Feed**: Acompanhe atualizações do seu feed favorito sem abrir o navegador.
+- **Monitor de Recursos**: Acompanhe CPU, RAM e Latência de Rede (Ping) em tempo real.
+- **GitHub Pro**: Gerencie múltiplas contas do GitHub com contagem de notificações e status de repositórios.
+- **Calendário Multi-Conta**: Integração com Google e Outlook com botão de refresh manual para ver sua agenda do dia.
 
 ### 🛠️ Ferramentas Rápidas (Popups)
 Acesso instantâneo com um clique:
 - 📝 **Notas Rápidas**: Bloco de notas persistente para lembretes instantâneos.
 - ✅ **Tarefas (Todo)**: Lista de afazeres simples e eficaz.
 - ⏰ **Despertador**: Configure alarmes rápidos para não perder compromissos.
-- 🧮 **Calculadoras**: Acesso à calculadora do sistema e uma exclusiva **Calculadora de Horas** (ideal para somar tempos de projetos).
+- 🧮 **Calculadoras**: Acesso à calculadora do sistema e uma exclusiva **Calculadora de Horas**.
 - 🖼️ **Galeria**: Slideshow de fotos flutuante.
-- 💡 **Motivação**: Citações aleatórias para inspirar seu dia.
+- 💡 **Motivação**: Citações aleatórias.
+- 🎨 **Color Picker**: Capture cores de qualquer lugar da tela (Hex/RGB).
+- 📏 **Régua de Pixel**: Régua flutuante e redimensionável para medições precisas na tela.
 
 ### 🎮 Diversão e Bem-estar
 - 🐲 **Zona Anti-Stress**: Um mini-game rápido com monstros para relaxar entre tarefas.

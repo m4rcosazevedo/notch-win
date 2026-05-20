@@ -216,3 +216,49 @@ def _ic_stress(p: QPainter, s: int, c: QColor):
     for i in range(3):
         tx = cx - r*0.28 + i * r*0.28
         p.drawRect(QRectF(tx, cy+r*0.22, r*0.18, r*0.28))
+
+
+def _ic_color_picker(p: QPainter, s: int, c: QColor):
+    pen = QPen(c, 1.8); pen.setCapStyle(Qt.PenCapStyle.RoundCap); pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen); p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawRoundedRect(QRectF(3, 3, s-6, s-6), 4, 4)
+    p.setBrush(QBrush(c)); p.setPen(Qt.PenStyle.NoPen)
+    p.drawEllipse(QRectF(s/2-4, s/2-4, 8, 8))
+
+
+def _ic_ruler(p: QPainter, s: int, c: QColor):
+    pen = QPen(c, 1.6); pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setPen(pen); p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawRoundedRect(QRectF(2, 6, s-4, 10), 2, 2)
+    for i in range(1, 10):
+        x = 2 + (s-4) * i / 10
+        h = 3 if i % 2 == 0 else 2
+        p.drawLine(QLineF(x, 6, x, 6+h))
+
+
+def _ic_github(p: QPainter, s: int, c: QColor):
+    cx, cy, r = s/2, s/2, s/2 - 2
+    p.setBrush(QBrush(c)); p.setPen(Qt.PenStyle.NoPen)
+    p.drawEllipse(QRectF(cx-r, cy-r, r*2, r*2))
+    p.setBrush(QBrush(QColor(0, 0, 0, 150)))
+    # Simple silhouette
+    p.drawEllipse(QRectF(cx-r*0.6, cy-r*0.4, r*1.2, r*0.9))
+    p.drawPolygon(QPolygonF([QPointF(cx-r*0.5, cy-r*0.6), QPointF(cx-r*0.3, cy-r*0.3), QPointF(cx-r*0.7, cy-r*0.3)]))
+    p.drawPolygon(QPolygonF([QPointF(cx+r*0.5, cy-r*0.6), QPointF(cx+r*0.3, cy-r*0.3), QPointF(cx+r*0.7, cy-r*0.3)]))
+
+
+def _ic_calendar(p: QPainter, s: int, c: QColor):
+    pen = QPen(c, 1.8); pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen); p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawRoundedRect(QRectF(3, 4, s-6, s-8), 3, 3)
+    p.drawLine(QLineF(3, 8, s-3, 8))
+    p.drawLine(QLineF(s/2-2, 2, s/2-2, 6))
+    p.drawLine(QLineF(s/2+2, 2, s/2+2, 6))
+
+
+def _ic_refresh_action(p: QPainter, s: int, c: QColor):
+    pen = QPen(c, 1.8); pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setPen(pen); p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawArc(QRectF(4, 4, s-8, s-8), 45*16, 270*16)
+    p.setBrush(QBrush(c)); p.setPen(Qt.PenStyle.NoPen)
+    p.drawPolygon(QPolygonF([QPointF(s-6, 4), QPointF(s-2, 8), QPointF(s-8, 10)]))

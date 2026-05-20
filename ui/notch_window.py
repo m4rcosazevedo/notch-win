@@ -1,5 +1,6 @@
 import json
 import subprocess
+import os
 
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QHBoxLayout, QFrame, QMenu, QSystemTrayIcon,
@@ -14,6 +15,9 @@ from ui.clipboard_widget import ClipboardWidget
 from modules.spotify import SpotifyModule
 from ui.spotify_widget import SpotifyWidget
 from modules.youtube_feed import YouTubeFeedModule
+from modules.system_monitor import SystemMonitorModule
+from modules.github_feed import GitHubFeedModule
+from modules.calendar_feed import CalendarFeedModule
 from ui.settings_window import SettingsWindow
 
 from ui.popups.clipboard_popup import ClipboardPopup
@@ -26,12 +30,21 @@ from ui.popups.photos_popup import PhotoSlideshow
 from ui.popups.hcalc_popup import HoursCalcPopup
 from ui.popups.pokemon_popup import PokemonPopup
 from ui.popups.stress_popup import StressPopup
+from ui.popups.color_picker_popup import ColorPickerPopup
+from ui.popups.ruler_popup import PixelRulerPopup
+from ui.popups.github_popup import GitHubPopup
+from ui.popups.calendar_popup import CalendarPopup
 
 from ui.widgets.tool_widget import ToolWidget
+from ui.widgets.system_widget import SystemWidget
+from ui.widgets.github_widget import GitHubWidget
+from ui.widgets.calendar_widget import CalendarWidget
 from ui.icons import (
     _DEFAULT_DARK, _refresh_icon,
     _ic_youtube, _ic_calc, _ic_notes, _ic_alarm, _ic_quotes,
     _ic_todo, _ic_photo, _ic_hcalc, _ic_pokemon, _ic_stress,
+    _ic_color_picker, _ic_ruler, _ic_github,
+    _ic_calendar, _ic_refresh_action,
 )
 
 from config import COLOR_PRESETS, MENU_QSS, QSS_PATH, SETTINGS_PATH
@@ -51,11 +64,13 @@ class NotchWindow(QWidget):
             "spotify": True, "pomodoro": True, "clipboard": True, "youtube": True,
             "calc": True, "notes": True, "alarm": True, "quotes": True,
             "todo": True, "photos": True, "hcalc": True, "pokemon": True, "stress": True,
+            "system": True, "cpicker": True, "ruler": True, "github": True,
+            "calendar": True,
         }
         self._current_color = "space-gray"
         self._current_mode  = "dark"
         self._icon_color    = _DEFAULT_DARK
-        self._yt_status     = "Não conectado"
+        self._yt_statuses: dict[str, str] = {}
         self._drag_pos: QPoint | None = None
 
         self._pomo_w    = PomodoroWidget()
@@ -64,6 +79,10 @@ class NotchWindow(QWidget):
         self._spotify   = SpotifyModule()
         self._spotify_w = SpotifyWidget(self._spotify)
         self._yt_module = YouTubeFeedModule()
+        self._sys_monitor = SystemMonitorModule()
+        self._github_module = GitHubFeedModule()
+        self._cal_module = CalendarFeedModule()
+        self._cal_statuses: dict[str, str] = {}
 
         self._clip_popup    = ClipboardPopup(self._clipboard)
         self._yt_popup      = YouTubePopup(self._yt_module)
@@ -75,7 +94,11 @@ class NotchWindow(QWidget):
         self._hcalc_popup   = HoursCalcPopup()
         self._pokemon_popup = PokemonPopup()
         self._stress_popup  = StressPopup()
-        self._settings_win = SettingsWindow(self._sections_state)
+        self._cpicker_popup = ColorPickerPopup()
+        self._ruler_popup   = PixelRulerPopup()
+        self._github_popup  = GitHubPopup(self._github_module)
+        self._cal_popup     = CalendarPopup(self._cal_module)
+        self._settings_win  = SettingsWindow(self._sections_state)
         self._sp_status    = "Não configurado"
 
         self._build_ui()
@@ -114,18 +137,27 @@ class NotchWindow(QWidget):
         self._hcalc_w   = ToolWidget(_ic_hcalc,   "Calculadora de Horas")
         self._pokemon_w = ToolWidget(_ic_pokemon,  "Pokémon Aleatório")
         self._stress_w  = ToolWidget(_ic_stress,   "Zona Anti-Stress")
+        self._sys_w     = SystemWidget(self._sys_monitor)
+        self._cpicker_w = ToolWidget(_ic_color_picker, "Color Picker")
+        self._ruler_w   = ToolWidget(_ic_ruler, "Pixel Ruler")
+        self._github_w  = GitHubWidget(self._github_module)
+        self._cal_w     = CalendarWidget(self._cal_module)
 
         sep1  = self._vline(); sep2  = self._vline(); sep3  = self._vline()
         sep4  = self._vline(); sep5  = self._vline(); sep6  = self._vline()
         sep7  = self._vline(); sep8  = self._vline(); sep9  = self._vline()
         sep10 = self._vline(); sep11 = self._vline(); sep12 = self._vline()
+        sep13 = self._vline(); sep14 = self._vline(); sep15 = self._vline()
+        sep16 = self._vline(); sep17 = self._vline()
 
         for w in (
             self._spotify_w, sep1, self._pomo_w, sep2, self._clip_w, sep3,
             self._yt_w,      sep4, self._calc_w,   sep5, self._notes_w,  sep6,
             self._alarm_w,   sep7, self._quotes_w, sep8, self._todo_w,   sep9,
             self._photos_w, sep10, self._hcalc_w, sep11, self._pokemon_w, sep12,
-            self._stress_w,
+            self._stress_w, sep13, self._sys_w, sep14, self._cpicker_w, sep15,
+            self._ruler_w, sep16, self._github_w, sep17,
+            self._cal_w,
         ):
             row.addWidget(w)
 
@@ -143,6 +175,11 @@ class NotchWindow(QWidget):
             "hcalc":     (self._hcalc_w,   sep10),
             "pokemon":   (self._pokemon_w, sep11),
             "stress":    (self._stress_w,  sep12),
+            "system":    (self._sys_w,     sep13),
+            "cpicker":   (self._cpicker_w, sep14),
+            "ruler":     (self._ruler_w,   sep15),
+            "github":    (self._github_w,  sep16),
+            "calendar":  (self._cal_w,     sep17),
         }
 
         root.addWidget(self._pill)
@@ -158,8 +195,11 @@ class NotchWindow(QWidget):
     def _connect_signals(self):
         self._clip_w.open_popup.connect(self._show_clipboard)
 
-        self._yt_module.status_changed.connect(self._on_yt_status)
-        self._yt_module.error.connect(lambda msg: self._on_yt_status(f"Erro: {msg[:50]}"))
+        self._yt_module.status_updated.connect(self._on_yt_status)
+        self._yt_module.refresh_started.connect(self._yt_popup._on_refresh_started)
+        self._yt_module.error.connect(lambda msg: self._on_yt_status("Erro", msg[:50]))
+        self._yt_module.videos_updated.connect(self._yt_popup._refresh)
+        self._yt_module.favorites_changed.connect(self._update_yt_settings_list)
         self._yt_w.btn.clicked.connect(self._show_youtube)
 
         self._calc_w.btn.clicked.connect(self._open_calc)
@@ -171,12 +211,28 @@ class NotchWindow(QWidget):
         self._hcalc_w.btn.clicked.connect(self._show_hcalc)
         self._pokemon_w.btn.clicked.connect(self._show_pokemon)
         self._stress_w.btn.clicked.connect(self._show_stress)
+        self._cpicker_w.btn.clicked.connect(self._cpicker_popup.start)
+        self._ruler_w.btn.clicked.connect(self._toggle_ruler)
+        self._github_w.open_popup.connect(self._show_github)
+        self._cal_w.open_popup.connect(self._show_calendar)
 
         self._settings_win.section_toggled.connect(self._on_section_toggled)
-        self._settings_win.youtube_connect.connect(self._on_yt_connect)
+        self._settings_win.youtube_connect.connect(self._on_yt_connect_signal)
         self._settings_win.youtube_refresh.connect(self._yt_module.refresh)
+        self._settings_win.youtube_toggle_fav.connect(self._yt_module.toggle_favorite)
+        self._settings_win.youtube_bulk_fav.connect(self._yt_module.set_bulk_favorites)
+        
         self._settings_win.spotify_configure.connect(self._on_spotify_configure)
+        self._settings_win.github_configure.connect(self._on_github_configure)
+        self._settings_win.calendar_configure.connect(self._on_calendar_configure)
+        
+        self._cal_module.status_updated.connect(self._on_cal_status_updated)
+        self._cal_module.error.connect(lambda msg: self._on_cal_status_updated("Erro", msg[:50]))
         self._spotify.status_changed.connect(self._on_spotify_status)
+
+        self._sys_monitor.start()
+        self._github_module.start()
+        self._cal_module.start()
 
     # ── Slots ─────────────────────────────────────────────────────────────────
 
@@ -249,12 +305,44 @@ class NotchWindow(QWidget):
         self._stress_popup._start_game()
         self._stress_popup.show_at(pos)
 
+    def _toggle_ruler(self):
+        if self._ruler_popup.isVisible():
+            self._ruler_popup.hide()
+        else:
+            self._ruler_popup.show()
+            self._ruler_popup.raise_()
+
+    def _show_github(self):
+        btn = self._github_w.btn
+        pos = btn.mapToGlobal(QPoint(btn.width() // 2, btn.height() + 6))
+        self._github_popup.show_at(pos)
+
+    def _show_calendar(self):
+        btn = self._cal_w.btn
+        pos = btn.mapToGlobal(QPoint(btn.width() // 2, btn.height() + 6))
+        self._cal_popup.show_at(pos)
+
     def _show_settings(self):
         if self._settings_win.isVisible():
             self._settings_win.hide()
             return
         preset = next((p for p in COLOR_PRESETS if p[0] == self._current_color), COLOR_PRESETS[0])
-        self._settings_win.update_yt_status(self._yt_status)
+        self._update_yt_settings_list()
+        self._settings_win.update_github_accounts(self._github_module._load_tokens())
+        
+        self._settings_win.update_spotify_credentials(
+            os.getenv("SPOTIFY_CLIENT_ID", ""),
+            os.getenv("SPOTIFY_CLIENT_SECRET", "")
+        )
+
+        cal_configs = self._cal_module._load_configs()
+        all_cal_accs = []
+        for c in cal_configs.get("google", []):
+            all_cal_accs.append({"name": c["name"], "type": "google", "status": self._cal_statuses.get(c["name"], "Conectado")})
+        for c in cal_configs.get("outlook", []):
+            all_cal_accs.append({"name": c["name"], "type": "outlook", "status": self._cal_statuses.get(c["name"], "Conectado")})
+        self._settings_win.update_calendar_accounts(all_cal_accs)
+        
         self._settings_win.apply_theme(preset[2], preset[3], preset[5])
         screen = QApplication.primaryScreen().geometry()
         self._settings_win.adjustSize()
@@ -266,17 +354,95 @@ class NotchWindow(QWidget):
         self._settings_win.raise_()
         self._settings_win.activateWindow()
 
-    def _on_yt_status(self, msg: str):
-        self._yt_status = msg
-        self._settings_win.update_yt_status(msg)
+    def _on_yt_status(self, name: str, msg: str):
+        self._yt_statuses[name] = msg
+        if self._settings_win.isVisible():
+            self._settings_win.update_yt_status(f"{name}: {msg}" if name != "Geral" else msg)
+            self._update_yt_settings_list()
 
-    def _on_yt_connect(self, secrets_path: str):
-        if secrets_path:
-            self._yt_module.set_secrets_path(secrets_path)
-        self._yt_module.authenticate()
+    def _update_yt_settings_list(self):
+        accs = self._yt_module._load_accounts()
+        ui_accs = []
+        for a in accs:
+            ui_accs.append({
+                "name": a["name"],
+                "status": self._yt_statuses.get(a["name"], "Conectado")
+            })
+        self._settings_win.update_yt_accounts(ui_accs)
+        self._settings_win.update_yt_favorites(self._yt_module.all_channels, self._yt_module.favorites)
+
+    def _on_yt_connect_signal(self, payload: str):
+        if payload.startswith("remove:"):
+            name = payload.split(":", 1)[1]
+            accs = self._yt_module._load_accounts()
+            accs = [a for a in accs if a["name"] != name]
+            self._yt_module.save_accounts(accs)
+            token_path = self._yt_module._tokens_dir / f"yt_{name}.json"
+            if token_path.exists(): token_path.unlink()
+            self._yt_module.refresh()
+            self._update_yt_settings_list()
+        else:
+            # Add account logic
+            name = self._settings_win._yt_name_edit.text().strip()
+            if not name:
+                self._on_yt_status("Geral", "Digite um nome para a conta")
+                return
+            
+            # payload is the secrets_path
+            self._yt_module.set_secrets_path(payload)
+            self._yt_module.authenticate(name)
 
     def _on_spotify_configure(self, client_id: str, client_secret: str):
         self._spotify.reconfigure(client_id, client_secret)
+
+    def _on_github_configure(self, data: list):
+        current_tokens = self._github_module._load_tokens()
+        for item in data:
+            if item.get("action") == "add":
+                current_tokens.append({"name": item["name"], "token": item["token"]})
+            elif item.get("action") == "remove":
+                current_tokens = [t for t in current_tokens if t["name"] != item["name"]]
+        
+        self._github_module.set_tokens(current_tokens)
+        self._settings_win.update_github_accounts(current_tokens)
+
+    def _on_calendar_configure(self, data: list):
+        for item in data:
+            if item.get("action") == "add":
+                if item["type"] == "google":
+                    # Usa o caminho das credenciais selecionado na aba YouTube
+                    secrets = self._settings_win._secrets_path
+                    self._cal_module.authenticate_google(item["name"], secrets)
+                elif item["type"] == "outlook":
+                    client_id = item.get("client_id", "")
+                    self._cal_module.authenticate_outlook(item["name"], client_id)
+            elif item.get("action") == "remove":
+                current_configs = self._cal_module._load_configs()
+                current_configs["google"] = [c for c in current_configs.get("google", []) if c["name"] != item["name"]]
+                current_configs["outlook"] = [c for c in current_configs.get("outlook", []) if c["name"] != item["name"]]
+                self._cal_module.save_configs(current_configs)
+                self._cal_module.refresh()
+                self._update_cal_settings_list()
+
+    def _on_cal_status_updated(self, name, status):
+        self._cal_statuses[name] = status
+        if self._settings_win.isVisible():
+            self._update_cal_settings_list()
+
+    def _update_cal_settings_list(self):
+        cal_configs = self._cal_module._load_configs()
+        all_cal_accs = []
+        for c in cal_configs.get("google", []):
+            all_cal_accs.append({
+                "name": c["name"], "type": "google", 
+                "status": self._cal_statuses.get(c["name"], "Conectado")
+            })
+        for c in cal_configs.get("outlook", []):
+            all_cal_accs.append({
+                "name": c["name"], "type": "outlook", 
+                "status": self._cal_statuses.get(c["name"], "Conectado")
+            })
+        self._settings_win.update_calendar_accounts(all_cal_accs)
 
     def _on_spotify_status(self, msg: str):
         self._sp_status = msg
@@ -293,7 +459,7 @@ class NotchWindow(QWidget):
         order = [
             "spotify", "pomodoro", "clipboard", "youtube",
             "calc", "notes", "alarm", "quotes", "todo", "photos",
-            "hcalc", "pokemon", "stress",
+            "hcalc", "pokemon", "stress", "system", "cpicker", "ruler", "github", "calendar",
         ]
         seen_visible = False
         for key in order:
@@ -362,6 +528,7 @@ class NotchWindow(QWidget):
             self._clip_popup, self._yt_popup, self._notes_popup,
             self._alarm_popup, self._quotes_popup, self._todo_popup,
             self._hcalc_popup, self._pokemon_popup, self._stress_popup,
+            self._github_popup, self._cal_popup,
             self._settings_win,
         ):
             popup.apply_theme(bg, border, mode)
@@ -379,7 +546,8 @@ class NotchWindow(QWidget):
         for w in (
             self._yt_w, self._calc_w, self._notes_w, self._alarm_w,
             self._quotes_w, self._todo_w, self._photos_w, self._hcalc_w,
-            self._pokemon_w, self._stress_w,
+            self._pokemon_w, self._stress_w, self._cpicker_w, self._ruler_w,
+            self._github_w, self._cal_w,
         ):
             w.refresh_icons(c)
 

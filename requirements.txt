@@ -6,3 +6,7 @@ python-dotenv
 google-api-python-client
 google-auth-oauthlib
 feedparser
+psutil
+ping3
+PyGithub
+msal

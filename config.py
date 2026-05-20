@@ -19,6 +19,9 @@ QSS_PATH      = BASE_DIR / "ui" / "styles.qss"
 SETTINGS_PATH = BASE_DIR / ".notch_settings.json"
 NOTES_PATH    = BASE_DIR / ".notch_notes.txt"
 TODO_PATH     = BASE_DIR / ".notch_todo.json"
+GITHUB_PATH   = BASE_DIR / ".notch_github.json"
+CALENDAR_PATH = BASE_DIR / ".notch_calendar.json"
+YOUTUBE_ACCS_PATH = BASE_DIR / ".notch_youtube.json"
 
 # (key, label, pill_bg, border, accent_rgb, mode, icon_rgba)
 COLOR_PRESETS = [

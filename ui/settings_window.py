@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from PyQt6.QtWidgets import (
@@ -60,7 +61,11 @@ class SettingsWindow(QWidget):
     section_toggled   = pyqtSignal(str, bool)
     youtube_connect   = pyqtSignal(str)
     youtube_refresh   = pyqtSignal()
+    youtube_toggle_fav = pyqtSignal(str) # channel_id
+    youtube_bulk_fav   = pyqtSignal(str) # "all" or "none"
     spotify_configure = pyqtSignal(str, str)   # client_id, client_secret
+    github_configure  = pyqtSignal(list)       # list of {"name": ..., "token": ...}
+    calendar_configure = pyqtSignal(list)      # list of accounts
 
     _SECTIONS = [
         ("spotify",   "🎵  Spotify"),
@@ -76,6 +81,11 @@ class SettingsWindow(QWidget):
         ("hcalc",     "⏱  Cal. Horas"),
         ("pokemon",   "⬟  Pokémon"),
         ("stress",    "💢  Anti-Stress"),
+        ("system",    "🖥  Recursos"),
+        ("cpicker",   "🎨  Color Picker"),
+        ("ruler",     "📏  Régua"),
+        ("github",    "🐙  GitHub"),
+        ("calendar",  "🗓  Calendário"),
     ]
 
     def __init__(self, sections: dict, parent=None):
@@ -87,6 +97,8 @@ class SettingsWindow(QWidget):
         self._sections_state = sections
         self._toggles: dict[str, ToggleSwitch] = {}
         self._secrets_path = ""
+        self._yt_status_lbl = None
+        self._sp_status_lbl = None
         self._build_ui()
 
     # ── Build ─────────────────────────────────────────────────────────────────
@@ -97,8 +109,9 @@ class SettingsWindow(QWidget):
 
         self._card = QFrame()
         self._card.setObjectName("settings-card")
-        self._card.setFixedWidth(360)
-        self._card.setMaximumHeight(560)
+        self._card.setMinimumWidth(400)
+        self._card.setMaximumWidth(920)
+        self._card.setMaximumHeight(600)
 
         v = QVBoxLayout(self._card)
         v.setContentsMargins(0, 0, 0, 0)
@@ -112,6 +125,8 @@ class SettingsWindow(QWidget):
         self._stack.addWidget(self._mk_sections_page())
         self._stack.addWidget(self._mk_youtube_page())
         self._stack.addWidget(self._mk_spotify_page())
+        self._stack.addWidget(self._mk_github_page())
+        self._stack.addWidget(self._mk_calendar_page())
         v.addWidget(self._stack)
 
         outer.addWidget(self._card)
@@ -147,6 +162,8 @@ class SettingsWindow(QWidget):
             ("sections", "Seções"),
             ("youtube",  "YouTube"),
             ("spotify",  "Spotify"),
+            ("github",   "GitHub"),
+            ("calendar", "Calendário"),
         ]):
             btn = QPushButton(label)
             btn.setObjectName("settings-tab-btn")
@@ -208,9 +225,98 @@ class SettingsWindow(QWidget):
         cv = QVBoxLayout(content)
         cv.setContentsMargins(0, 10, 0, 14)
         cv.setSpacing(0)
-        cv.addWidget(self._mk_group_label("YouTube Data API"), 0, Qt.AlignmentFlag.AlignLeft)
+        
+        cv.addWidget(self._mk_group_label("Como configurar"), 0, Qt.AlignmentFlag.AlignLeft)
         cv.addSpacing(6)
-        cv.addWidget(self._mk_youtube_block())
+
+        self._yt_status_lbl = QLabel("Aguardando configuração")
+        self._yt_status_lbl.setObjectName("settings-status-lbl")
+        self._yt_status_lbl.setContentsMargins(16, 0, 16, 8)
+        cv.addWidget(self._yt_status_lbl)
+
+        self._add_step(cv, "1", "Crie um projeto no Google Cloud e ative a YouTube Data API v3:")
+        link = QLabel('<a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com">Abrir Google Cloud Console ↗</a>')
+        link.setObjectName("settings-link")
+        link.setOpenExternalLinks(True)
+        link.setContentsMargins(26, 0, 0, 0)
+        cv.addWidget(link)
+
+        self._add_step(cv, "2", 'Em "Credenciais" → "Criar credencial" → "ID do cliente OAuth 2.0" → "App para computador". Baixe o JSON.')
+        
+        file_row = QWidget()
+        fh = QHBoxLayout(file_row)
+        fh.setContentsMargins(26, 2, 0, 0)
+        fh.setSpacing(8)
+        self._secrets_lbl = QLabel("Nenhum arquivo selecionado")
+        self._secrets_lbl.setObjectName("settings-file-lbl")
+        pick = QPushButton("Escolher arquivo")
+        pick.setObjectName("settings-sm-btn")
+        pick.setFixedHeight(26)
+        pick.clicked.connect(self._pick_secrets)
+        fh.addWidget(self._secrets_lbl, 1)
+        fh.addWidget(pick, 0)
+        cv.addWidget(file_row)
+
+        cv.addSpacing(16)
+        cv.addWidget(self._mk_group_label("Adicionar Conta YouTube"), 0, Qt.AlignmentFlag.AlignLeft)
+        cv.addSpacing(6)
+        
+        add_fr = QWidget()
+        av = QVBoxLayout(add_fr)
+        av.setContentsMargins(16, 0, 16, 10)
+        av.setSpacing(4)
+        self._yt_name_edit = QLineEdit(); self._yt_name_edit.setObjectName("settings-field-edit")
+        self._yt_name_edit.setPlaceholderText("Nome da conta (ex: Pessoal)")
+        yt_btn = QPushButton("+ Conectar YouTube")
+        yt_btn.setObjectName("settings-primary-btn")
+        yt_btn.clicked.connect(self._on_yt_connect)
+        av.addWidget(self._yt_name_edit); av.addWidget(yt_btn)
+        cv.addWidget(add_fr)
+
+        cv.addWidget(self._mk_group_label("Contas Ativas"), 0, Qt.AlignmentFlag.AlignLeft)
+        cv.addSpacing(4)
+        self._yt_list_layout = QVBoxLayout()
+        self._yt_list_layout.setContentsMargins(16, 0, 16, 0)
+        self._yt_list_layout.setSpacing(0)
+        cv.addLayout(self._yt_list_layout)
+
+        cv.addSpacing(12)
+        fav_hdr = QWidget()
+        fh = QHBoxLayout(fav_hdr); fh.setContentsMargins(0, 0, 0, 0)
+        fh.addWidget(self._mk_group_label("Canais Favoritos"), 1)
+        self._yt_fav_count_lbl = QLabel("0/20")
+        self._yt_fav_count_lbl.setObjectName("settings-status-lbl")
+        self._yt_fav_count_lbl.setStyleSheet("font-weight: 600; color: #0a84ff;")
+        fh.addWidget(self._yt_fav_count_lbl)
+        cv.addWidget(fav_hdr)
+        
+        cv.addSpacing(4)
+        bulk_fr = QWidget()
+        bh = QHBoxLayout(bulk_fr); bh.setContentsMargins(16, 0, 16, 0); bh.setSpacing(8)
+        sel_all = QPushButton("Selecionar 20")
+        sel_all.setObjectName("settings-sm-btn")
+        sel_all.clicked.connect(lambda: self.youtube_bulk_fav.emit("all"))
+        clr_all = QPushButton("Limpar Todos")
+        clr_all.setObjectName("settings-sm-btn")
+        clr_all.clicked.connect(lambda: self.youtube_bulk_fav.emit("none"))
+        bh.addWidget(sel_all); bh.addWidget(clr_all); bh.addStretch()
+        cv.addWidget(bulk_fr)
+
+        cv.addSpacing(4)
+        search_fr = QWidget()
+        sh = QHBoxLayout(search_fr); sh.setContentsMargins(16, 0, 16, 4)
+        self._yt_search_edit = QLineEdit()
+        self._yt_search_edit.setObjectName("settings-field-edit")
+        self._yt_search_edit.setPlaceholderText("Filtrar canais...")
+        self._yt_search_edit.textChanged.connect(self._filter_yt_channels)
+        sh.addWidget(self._yt_search_edit)
+        cv.addWidget(search_fr)
+
+        self._yt_fav_list_layout = QVBoxLayout()
+        self._yt_fav_list_layout.setContentsMargins(16, 0, 16, 0)
+        self._yt_fav_list_layout.setSpacing(0)
+        cv.addLayout(self._yt_fav_list_layout)
+
         cv.addStretch()
 
         sa.setWidget(content)
@@ -234,6 +340,154 @@ class SettingsWindow(QWidget):
         cv.addWidget(self._mk_group_label("Spotify for Developers"), 0, Qt.AlignmentFlag.AlignLeft)
         cv.addSpacing(6)
         cv.addWidget(self._mk_spotify_block())
+        cv.addStretch()
+
+        sa.setWidget(content)
+        return sa
+
+    # ── GitHub page ───────────────────────────────────────────────────────────
+
+    def _mk_github_page(self) -> QScrollArea:
+        sa = QScrollArea()
+        sa.setWidgetResizable(True)
+        sa.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        sa.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        sa.setFrameShape(QFrame.Shape.NoFrame)
+        sa.setObjectName("settings-scroll")
+
+        content = QWidget()
+        content.setObjectName("settings-content")
+        cv = QVBoxLayout(content)
+        cv.setContentsMargins(0, 10, 0, 14)
+        cv.setSpacing(0)
+        
+        cv.addWidget(self._mk_group_label("Como configurar"), 0, Qt.AlignmentFlag.AlignLeft)
+        cv.addSpacing(6)
+
+        # Tutorial Steps
+        self._add_step(cv, "1", "Vá em Settings > Developer settings > Personal access tokens > Tokens (classic).")
+        link = QLabel('<a href="https://github.com/settings/tokens">Abrir GitHub Tokens ↗</a>')
+        link.setObjectName("settings-link")
+        link.setOpenExternalLinks(True)
+        link.setContentsMargins(26, 0, 0, 0)
+        cv.addWidget(link)
+
+        self._add_step(cv, "2", "Clique em 'Generate new token' e selecione o escopo 'notifications'.")
+        self._add_step(cv, "3", "Cole o token gerado abaixo para cada conta que deseja monitorar.")
+        
+        cv.addSpacing(16)
+        cv.addWidget(self._mk_group_label("Adicionar Nova Conta"), 0, Qt.AlignmentFlag.AlignLeft)
+        cv.addSpacing(6)
+        
+        # Form to add new account
+        add_fr = QWidget()
+        av = QVBoxLayout(add_fr)
+        av.setContentsMargins(16, 0, 16, 10)
+        av.setSpacing(4)
+        
+        self._gh_name_edit = QLineEdit()
+        self._gh_name_edit.setObjectName("settings-field-edit")
+        self._gh_name_edit.setPlaceholderText("Nome da Conta (ex: Pessoal)")
+        
+        self._gh_token_edit = QLineEdit()
+        self._gh_token_edit.setObjectName("settings-field-edit")
+        self._gh_token_edit.setPlaceholderText("ghp_TOKEN_AQUI...")
+        self._gh_token_edit.setEchoMode(QLineEdit.EchoMode.Password)
+        
+        add_btn = QPushButton("+ Adicionar Conta")
+        add_btn.setObjectName("settings-primary-btn")
+        add_btn.clicked.connect(self._on_gh_add)
+        
+        av.addWidget(self._gh_name_edit)
+        av.addWidget(self._gh_token_edit)
+        av.addWidget(add_btn)
+        cv.addWidget(add_fr)
+
+        cv.addWidget(self._mk_group_label("Contas Ativas"), 0, Qt.AlignmentFlag.AlignLeft)
+        cv.addSpacing(4)
+        
+        self._gh_list_layout = QVBoxLayout()
+        self._gh_list_layout.setContentsMargins(16, 0, 16, 0)
+        self._gh_list_layout.setSpacing(0)
+        cv.addLayout(self._gh_list_layout)
+        
+        cv.addStretch()
+
+        sa.setWidget(content)
+        return sa
+
+    # ── Calendar page ─────────────────────────────────────────────────────────
+
+    def _mk_calendar_page(self) -> QScrollArea:
+        sa = QScrollArea()
+        sa.setWidgetResizable(True)
+        sa.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        sa.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        sa.setFrameShape(QFrame.Shape.NoFrame)
+        sa.setObjectName("settings-scroll")
+
+        content = QWidget()
+        content.setObjectName("settings-content")
+        cv = QVBoxLayout(content)
+        cv.setContentsMargins(0, 10, 0, 14)
+        cv.setSpacing(0)
+        
+        cv.addWidget(self._mk_group_label("Google (Para todos os usuários)"), 0, Qt.AlignmentFlag.AlignLeft)
+        cv.addSpacing(6)
+        self._add_step(cv, "1", "Acesse a aba 'YouTube' aqui nas configurações e siga o tutorial para baixar seu arquivo JSON de credenciais.")
+        self._add_step(cv, "2", "Com o arquivo selecionado lá, digite um nome abaixo e clique em conectar.")
+        
+        cv.addSpacing(16)
+        cv.addWidget(self._mk_group_label("Outlook / Office 365"), 0, Qt.AlignmentFlag.AlignLeft)
+        cv.addSpacing(6)
+        self._add_step(cv, "1", "Crie um Registro de Aplicativo no Portal Azure:")
+        link_az = QLabel('<a href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade">Abrir Portal Azure ↗</a>')
+        link_az.setObjectName("settings-link")
+        link_az.setOpenExternalLinks(True)
+        link_az.setContentsMargins(26, 0, 0, 0)
+        cv.addWidget(link_az)
+        self._add_step(cv, "2", "Copie o 'Application (client) ID' e cole no campo abaixo.")
+
+        cv.addSpacing(16)
+        cv.addWidget(self._mk_group_label("Adicionar Conta"), 0, Qt.AlignmentFlag.AlignLeft)
+        cv.addSpacing(6)
+        
+        # Google Add
+        g_fr = QWidget()
+        gv = QVBoxLayout(g_fr)
+        gv.setContentsMargins(16, 0, 16, 10)
+        gv.setSpacing(4)
+        self._gcal_name = QLineEdit(); self._gcal_name.setObjectName("settings-field-edit")
+        self._gcal_name.setPlaceholderText("Nome da conta Google")
+        g_btn = QPushButton("+ Conectar Google Calendar")
+        g_btn.setObjectName("settings-primary-btn")
+        g_btn.clicked.connect(self._on_gcal_add)
+        gv.addWidget(self._gcal_name); gv.addWidget(g_btn)
+        cv.addWidget(g_fr)
+
+        # Outlook Add
+        o_fr = QWidget()
+        ov = QVBoxLayout(o_fr)
+        ov.setContentsMargins(16, 0, 16, 10)
+        ov.setSpacing(4)
+        self._ocal_name = QLineEdit(); self._ocal_name.setObjectName("settings-field-edit")
+        self._ocal_name.setPlaceholderText("Nome da conta Outlook")
+        self._ocal_client_id = QLineEdit(); self._ocal_client_id.setObjectName("settings-field-edit")
+        self._ocal_client_id.setPlaceholderText("Application (client) ID")
+        o_btn = QPushButton("+ Conectar Outlook")
+        o_btn.setObjectName("settings-primary-btn")
+        o_btn.setStyleSheet("background-color: #0078d4;")
+        o_btn.clicked.connect(self._on_ocal_add)
+        ov.addWidget(self._ocal_name); ov.addWidget(self._ocal_client_id); ov.addWidget(o_btn)
+        cv.addWidget(o_fr)
+
+        cv.addWidget(self._mk_group_label("Contas Ativas"), 0, Qt.AlignmentFlag.AlignLeft)
+        cv.addSpacing(4)
+        self._cal_list_layout = QVBoxLayout()
+        self._cal_list_layout.setContentsMargins(16, 0, 16, 0)
+        self._cal_list_layout.setSpacing(0)
+        cv.addLayout(self._cal_list_layout)
+        
         cv.addStretch()
 
         sa.setWidget(content)
@@ -363,6 +617,9 @@ class SettingsWindow(QWidget):
 
         self._add_step(v, "2", 'Cole as credenciais do app criado (aba "Settings"):')
 
+        cid_env = os.getenv("SPOTIFY_CLIENT_ID", "")
+        cs_env  = os.getenv("SPOTIFY_CLIENT_SECRET", "")
+
         for attr, label, secret in [
             ("_sp_id_edit",     "Client ID",     False),
             ("_sp_secret_edit", "Client Secret", True),
@@ -375,6 +632,8 @@ class SettingsWindow(QWidget):
             lbl.setObjectName("settings-field-lbl")
             lbl.setFixedWidth(90)
             edit = QLineEdit()
+            if attr == "_sp_id_edit": edit.setText(cid_env)
+            if attr == "_sp_secret_edit": edit.setText(cs_env)
             edit.setObjectName("settings-field-edit")
             edit.setEchoMode(QLineEdit.EchoMode.Password if secret else QLineEdit.EchoMode.Normal)
             setattr(self, attr, edit)
@@ -436,13 +695,232 @@ class SettingsWindow(QWidget):
         if cid and cs:
             self.spotify_configure.emit(cid, cs)
 
+    def _on_gh_add(self):
+        name = self._gh_name_edit.text().strip()
+        token = self._gh_token_edit.text().strip()
+        if name and token:
+            # We don't save here directly, we emit a signal and NotchWindow handles it
+            # But we need the current list to append.
+            # Simplified: just emit current + new
+            self._gh_name_edit.clear()
+            self._gh_token_edit.clear()
+            # This logic will be completed in NotchWindow by reading existing and emitting back
+            self.github_configure.emit([{"name": name, "token": token, "action": "add"}])
+
+    def _on_gh_remove(self, name):
+        self.github_configure.emit([{"name": name, "action": "remove"}])
+
+    def _on_gcal_add(self):
+        name = self._gcal_name.text().strip()
+        if name:
+            self._gcal_name.clear()
+            self.calendar_configure.emit([{"name": name, "type": "google", "action": "add"}])
+
+    def _on_ocal_add(self):
+        name = self._ocal_name.text().strip()
+        client_id = self._ocal_client_id.text().strip()
+        if name and client_id:
+            self._ocal_name.clear()
+            self._ocal_client_id.clear()
+            self.calendar_configure.emit([{"name": name, "type": "outlook", "client_id": client_id, "action": "add"}])
+
+    def _on_cal_remove(self, name):
+        self.calendar_configure.emit([{"name": name, "action": "remove"}])
+
     # ── Public API ────────────────────────────────────────────────────────────
 
+    def update_calendar_accounts(self, accounts: list):
+        """Atualiza a lista visual de contas de Calendário."""
+        while self._cal_list_layout.count():
+            item = self._cal_list_layout.takeAt(0)
+            if item.widget(): item.widget().deleteLater()
+        
+        for acc in accounts:
+            row = QWidget()
+            h = QHBoxLayout(row)
+            h.setContentsMargins(0, 4, 0, 4)
+            icon = "🌐" if acc.get("type") == "google" else "✉️"
+            
+            info_v = QVBoxLayout()
+            info_v.setSpacing(0)
+            lbl = QLabel(f"{icon} {acc['name']}")
+            lbl.setObjectName("settings-row-lbl")
+            status = acc.get("status", "")
+            status_lbl = QLabel(status)
+            status_lbl.setObjectName("settings-status-lbl")
+            status_lbl.setStyleSheet("font-size: 9px; color: rgba(255,255,255,0.4);")
+            info_v.addWidget(lbl)
+            if status:
+                info_v.addWidget(status_lbl)
+            
+            rem = QPushButton("Remover")
+            rem.setObjectName("settings-sm-btn")
+            rem.setStyleSheet("color: #ff453a;")
+            rem.clicked.connect(lambda _, n=acc['name']: self._on_cal_remove(n))
+            
+            h.addLayout(info_v)
+            h.addStretch()
+            h.addWidget(rem)
+            self._cal_list_layout.addWidget(row)
+            
+            sep = QFrame()
+            sep.setObjectName("settings-row-sep")
+            sep.setFrameShape(QFrame.Shape.HLine)
+            self._cal_list_layout.addWidget(sep)
+
+    def update_github_accounts(self, accounts: list):
+        """Atualiza a lista visual de contas GitHub."""
+        while self._gh_list_layout.count():
+            item = self._gh_list_layout.takeAt(0)
+            if item.widget(): item.widget().deleteLater()
+        
+        for acc in accounts:
+            row = QWidget()
+            h = QHBoxLayout(row)
+            h.setContentsMargins(0, 4, 0, 4)
+            lbl = QLabel(f"🐙 {acc['name']}")
+            lbl.setObjectName("settings-row-lbl")
+            rem = QPushButton("Remover")
+            rem.setObjectName("settings-sm-btn")
+            rem.setStyleSheet("color: #ff453a;")
+            rem.clicked.connect(lambda _, n=acc['name']: self._on_gh_remove(n))
+            h.addWidget(lbl)
+            h.addStretch()
+            h.addWidget(rem)
+            self._gh_list_layout.addWidget(row)
+            
+            sep = QFrame()
+            sep.setObjectName("settings-row-sep")
+            sep.setFrameShape(QFrame.Shape.HLine)
+            self._gh_list_layout.addWidget(sep)
+
+    def update_yt_accounts(self, accounts: list):
+        """Atualiza a lista visual de contas YouTube."""
+        while self._yt_list_layout.count():
+            item = self._yt_list_layout.takeAt(0)
+            if item.widget(): item.widget().deleteLater()
+        
+        for acc in accounts:
+            row = QWidget()
+            h = QHBoxLayout(row)
+            h.setContentsMargins(0, 4, 0, 4)
+            
+            info_v = QVBoxLayout()
+            info_v.setSpacing(0)
+            lbl = QLabel(f"▶ {acc['name']}")
+            lbl.setObjectName("settings-row-lbl")
+            status = acc.get("status", "")
+            status_lbl = QLabel(status)
+            status_lbl.setObjectName("settings-status-lbl")
+            status_lbl.setStyleSheet("font-size: 9px; color: rgba(255,255,255,0.4);")
+            info_v.addWidget(lbl)
+            if status:
+                info_v.addWidget(status_lbl)
+            
+            rem = QPushButton("Remover")
+            rem.setObjectName("settings-sm-btn")
+            rem.setStyleSheet("color: #ff453a;")
+            # Nota: O sinal para remover precisa ser tratado no NotchWindow
+            # Para simplificar, vou emitir um sinal customizado ou apenas o connect
+            rem.clicked.connect(lambda _, n=acc['name']: self.youtube_connect.emit(f"remove:{n}"))
+            
+            h.addLayout(info_v)
+            h.addStretch()
+            h.addWidget(rem)
+            self._yt_list_layout.addWidget(row)
+            
+            sep = QFrame()
+            sep.setObjectName("settings-row-sep")
+            sep.setFrameShape(QFrame.Shape.HLine)
+            self._yt_list_layout.addWidget(sep)
+
+    def update_yt_favorites(self, all_channels: dict, favorites: list):
+        """Atualiza a lista visual de canais para favoritar."""
+        self._all_yt_channels = all_channels
+        self._yt_favorites = favorites
+        self._yt_fav_count_lbl.setText(f"{len(favorites)}/20")
+        
+        self._render_yt_favorites()
+
+    def _filter_yt_channels(self):
+        """Filtra a lista visual conforme o texto digitado."""
+        self._render_yt_favorites()
+
+    def _render_yt_favorites(self):
+        """Renderiza a lista de canais respeitando o filtro de busca."""
+        while self._yt_fav_list_layout.count():
+            item = self._yt_fav_list_layout.takeAt(0)
+            if item.widget(): item.widget().deleteLater()
+        
+        if not hasattr(self, "_all_yt_channels") or not self._all_yt_channels:
+            lbl = QLabel("Nenhum canal sincronizado.\nConecte uma conta acima primeiro.")
+            lbl.setObjectName("settings-status-lbl")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            lbl.setContentsMargins(0, 10, 0, 10)
+            self._yt_fav_list_layout.addWidget(lbl)
+            return
+
+        query = self._yt_search_edit.text().lower().strip()
+        
+        # Sort channels by name
+        sorted_channels = sorted(self._all_yt_channels.items(), key=lambda x: x[1].lower())
+
+        found_any = False
+        for cid, name in sorted_channels:
+            if query and query not in name.lower():
+                continue
+            
+            found_any = True
+            row = QWidget()
+            h = QHBoxLayout(row)
+            h.setContentsMargins(0, 4, 0, 4)
+            
+            is_fav = cid in self._yt_favorites
+            lbl = QLabel(name)
+            lbl.setObjectName("settings-row-lbl")
+            
+            fav_btn = QPushButton("★" if is_fav else "☆")
+            fav_btn.setFixedSize(26, 26)
+            fav_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            
+            # Highlight favorites with gold color
+            fav_style = "border: none; font-size: 16px; background: transparent;"
+            if is_fav:
+                fav_style += " color: #ffcc00;"
+            else:
+                fav_style += " color: rgba(128,128,128,0.4);"
+            
+            fav_btn.setStyleSheet(fav_style)
+            fav_btn.clicked.connect(lambda _, c=cid: self.youtube_toggle_fav.emit(c))
+            
+            h.addWidget(lbl, 1)
+            h.addWidget(fav_btn)
+            self._yt_fav_list_layout.addWidget(row)
+            
+            sep = QFrame()
+            sep.setObjectName("settings-row-sep")
+            sep.setFrameShape(QFrame.Shape.HLine)
+            self._yt_fav_list_layout.addWidget(sep)
+        
+        if not found_any and query:
+            lbl = QLabel(f"Nenhum canal encontrado para '{query}'")
+            lbl.setObjectName("settings-status-lbl")
+            lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._yt_fav_list_layout.addWidget(lbl)
+
     def update_yt_status(self, msg: str):
-        self._yt_status_lbl.setText(msg)
+        if hasattr(self, '_yt_status_lbl') and self._yt_status_lbl:
+            self._yt_status_lbl.setText(msg)
 
     def update_spotify_status(self, msg: str):
         self._sp_status_lbl.setText(msg)
+
+    def update_spotify_credentials(self, client_id: str, client_secret: str):
+        """Preenche os campos de ID e Secret do Spotify."""
+        if hasattr(self, "_sp_id_edit"):
+            self._sp_id_edit.setText(client_id)
+        if hasattr(self, "_sp_secret_edit"):
+            self._sp_secret_edit.setText(client_secret)
 
     def apply_theme(self, bg: str, border: str, mode: str):
         is_light  = mode == "light"
@@ -454,7 +932,7 @@ class SettingsWindow(QWidget):
         tab_active= "rgba(0,0,0,0.08)"  if is_light else "rgba(255,255,255,0.10)"
         inp_bg    = "rgba(0,0,0,0.05)"  if is_light else "rgba(255,255,255,0.07)"
         inp_brd   = "rgba(0,0,0,0.12)"  if is_light else "rgba(255,255,255,0.14)"
-        link_col  = "#0055cc"           if is_light else "#0a84ff"
+        link_col  = "#0a84ff"
         scroll_h  = "rgba(0,0,0,0.15)"  if is_light else "rgba(255,255,255,0.15)"
 
         for t in self._toggles.values():
@@ -484,9 +962,9 @@ class SettingsWindow(QWidget):
             QWidget#settings-tab-bar {{ background: transparent; }}
             QPushButton#settings-tab-btn {{
                 background: transparent; color: {muted}; border: none;
-                border-radius: 8px; font-size: 12px; font-weight: 500;
+                border-radius: 8px; font-size: 11px; font-weight: 500;
                 font-family: "SF Pro Text","Segoe UI",sans-serif;
-                padding: 5px 14px;
+                padding: 5px 10px;
             }}
             QPushButton#settings-tab-btn:checked {{
                 background: {tab_active}; color: {text}; font-weight: 600;

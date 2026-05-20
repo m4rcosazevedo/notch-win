@@ -8,6 +8,11 @@ client_secrets.json
 .notch_notes.txt
 .notch_todo.json
 .youtube_subs.json
+.notch_calendar.json
+.notch_github.json
+.notch_*.json
+notch_youtube.json
+.tokens
 
 # ── Ambiente virtual Python ────────────────────────────────────────────────────
 .venv/

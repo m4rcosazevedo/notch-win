@@ -62,12 +62,18 @@ QLabel#clip-count {
     color: #ffd60a;
     min-width: 16px;
 }
+QLabel#sys-label {
+    font-size: 10px;
+    font-family: "SF Mono", "Cascadia Code", monospace;
+    color: rgba(255, 255, 255, 0.6);
+}
 
 /* ── Labels — light mode ──────────────────────────── */
 NotchWindow[mode="light"] QLabel              { color: #1c1c1e; }
 NotchWindow[mode="light"] QLabel#track-title  { color: #000000; }
 NotchWindow[mode="light"] QLabel#track-artist { color: rgba(0,0,0,0.50); }
 NotchWindow[mode="light"] QLabel#clip-count   { color: #9a7000; }
+NotchWindow[mode="light"] QLabel#sys-label    { color: rgba(0,0,0,0.6); }
 /* Pomodoro time keeps its semantic color in light mode */
 NotchWindow[mode="light"] QLabel#pomodoro-time             { color: #d63031; }
 NotchWindow[mode="light"] QLabel#pomodoro-time[mode="break"]      { color: #00b050; }

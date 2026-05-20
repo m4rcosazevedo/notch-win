@@ -23,6 +23,7 @@ class ClipboardPopup(QWidget):
         self._card = QFrame()
         self._card.setObjectName("clip-popup")
         self._card.setFixedWidth(360)
+        self._card.setMinimumHeight(200)
 
         v = QVBoxLayout(self._card)
         v.setContentsMargins(0, 0, 0, 0)

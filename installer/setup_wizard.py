@@ -15,6 +15,19 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
+import ctypes
+
+def is_admin():
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+def request_admin():
+    if not is_admin():
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
+        sys.exit()
+
 # ── Paths ──────────────────────────────────────────────────────────────────────
 # Quando empacotado com PyInstaller, arquivos do app ficam em sys._MEIPASS/app/
 if getattr(sys, "frozen", False):
@@ -322,7 +335,7 @@ class SetupWizard(tk.Tk):
         self._chk_python.pack(anchor="w", pady=2)
         self._chk_copy = CheckItem(checks_fr, "Arquivos copiados para pasta de instalação")
         self._chk_copy.pack(anchor="w", pady=2)
-        self._chk_deps = CheckItem(checks_fr, "Dependências: PyQt6, spotipy, plyer…")
+        self._chk_deps = CheckItem(checks_fr, "Dependências (PyQt6, OpenCV, monitoramento de sistema…)")
         self._chk_deps.pack(anchor="w", pady=2)
 
         # Log de saída do pip
@@ -534,5 +547,8 @@ class SetupWizard(tk.Tk):
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    app = SetupWizard()
-    app.mainloop()
+    if not is_admin() and sys.platform == "win32":
+        request_admin()
+    else:
+        app = SetupWizard()
+        app.mainloop()
