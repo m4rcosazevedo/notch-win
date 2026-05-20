@@ -641,7 +641,7 @@ class NotchWindow(QWidget):
     def _setup_autohide(self):
         self._hide_timer = QTimer(self)
         self._hide_timer.setSingleShot(True)
-        self._hide_timer.setInterval(10_000)
+        self._hide_timer.setInterval(3_000)
         self._hide_timer.timeout.connect(self._slide_out)
 
         self._peek_poll = QTimer(self)
