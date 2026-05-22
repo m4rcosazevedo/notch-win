@@ -18,6 +18,7 @@ from modules.youtube_feed import YouTubeFeedModule
 from modules.system_monitor import SystemMonitorModule
 from modules.github_feed import GitHubFeedModule
 from modules.calendar_feed import CalendarFeedModule
+from modules.startup import set_startup
 from ui.settings_window import SettingsWindow
 
 from ui.popups.clipboard_popup import ClipboardPopup
@@ -217,6 +218,7 @@ class NotchWindow(QWidget):
         self._cal_w.open_popup.connect(self._show_calendar)
 
         self._settings_win.section_toggled.connect(self._on_section_toggled)
+        self._settings_win.general_setting_toggled.connect(self._on_general_setting_toggled)
         self._settings_win.youtube_connect.connect(self._on_yt_connect_signal)
         self._settings_win.youtube_refresh.connect(self._yt_module.refresh)
         self._settings_win.youtube_toggle_fav.connect(self._yt_module.toggle_favorite)
@@ -453,6 +455,11 @@ class NotchWindow(QWidget):
         self._update_separators()
         self._save_settings()
 
+    def _on_general_setting_toggled(self, key: str, value: bool):
+        if key == "startup":
+            set_startup(value)
+        # self._save_settings() # Not strictly needed as we check system on load
+
     # ── Section visibility ────────────────────────────────────────────────────
 
     def _update_separators(self):
@@ -487,6 +494,12 @@ class NotchWindow(QWidget):
         for key, val in self._sections_state.items():
             if key in self._settings_win._toggles:
                 self._settings_win._toggles[key].setChecked(val)
+        
+        # Sync startup toggle
+        from modules.startup import is_startup_enabled
+        if "startup" in self._settings_win._toggles:
+            self._settings_win._toggles["startup"].setChecked(is_startup_enabled())
+
         preset = next((p for p in COLOR_PRESETS if p[0] == self._current_color), COLOR_PRESETS[0])
         self._apply_color(*preset, save=False)
         self._update_separators()

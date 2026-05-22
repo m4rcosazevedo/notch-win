@@ -59,6 +59,7 @@ class ToggleSwitch(QWidget):
 
 class SettingsWindow(QWidget):
     section_toggled   = pyqtSignal(str, bool)
+    general_setting_toggled = pyqtSignal(str, bool)
     youtube_connect   = pyqtSignal(str)
     youtube_refresh   = pyqtSignal()
     youtube_toggle_fav = pyqtSignal(str) # channel_id
@@ -202,6 +203,12 @@ class SettingsWindow(QWidget):
         cv = QVBoxLayout(content)
         cv.setContentsMargins(0, 10, 0, 14)
         cv.setSpacing(0)
+
+        cv.addWidget(self._mk_group_label("Geral"), 0, Qt.AlignmentFlag.AlignLeft)
+        cv.addSpacing(4)
+        cv.addWidget(self._mk_general_block())
+        cv.addSpacing(16)
+
         cv.addWidget(self._mk_group_label("Seções visíveis"), 0, Qt.AlignmentFlag.AlignLeft)
         cv.addSpacing(4)
         cv.addWidget(self._mk_sections_block())
@@ -209,6 +216,29 @@ class SettingsWindow(QWidget):
 
         sa.setWidget(content)
         return sa
+
+    def _mk_general_block(self) -> QWidget:
+        from modules.startup import is_startup_enabled
+        w = QWidget()
+        v = QVBoxLayout(w)
+        v.setContentsMargins(16, 0, 16, 0)
+        v.setSpacing(0)
+        
+        # Start with system
+        row = QWidget()
+        h = QHBoxLayout(row)
+        h.setContentsMargins(0, 8, 0, 8)
+        lbl = QLabel("Iniciar com o sistema")
+        lbl.setObjectName("settings-row-lbl")
+        toggle = ToggleSwitch(is_startup_enabled())
+        toggle.toggled.connect(lambda val: self.general_setting_toggled.emit("startup", val))
+        self._toggles["startup"] = toggle
+        h.addWidget(lbl)
+        h.addStretch()
+        h.addWidget(toggle)
+        v.addWidget(row)
+        
+        return w
 
     # ── YouTube page ──────────────────────────────────────────────────────────
 

@@ -1,13 +1,6 @@
 import sys
 import subprocess
-import ctypes
 import os
-
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
 
 def run_install():
     print("=== Notch Win: Instalador de Dependências ===")
@@ -29,9 +22,4 @@ if __name__ == "__main__":
         print("Este instalador é destinado apenas para Windows.")
         sys.exit(1)
 
-    if is_admin():
-        run_install()
-    else:
-        print("Solicitando permissão de Administrador para instalação de hardware...")
-        # Re-run the script with admin rights
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
+    run_install()

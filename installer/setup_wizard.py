@@ -15,19 +15,6 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import filedialog, messagebox
 
-import ctypes
-
-def is_admin():
-    try:
-        return ctypes.windll.shell32.IsUserAnAdmin()
-    except:
-        return False
-
-def request_admin():
-    if not is_admin():
-        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
-        sys.exit()
-
 # ── Paths ──────────────────────────────────────────────────────────────────────
 # Quando empacotado com PyInstaller, arquivos do app ficam em sys._MEIPASS/app/
 if getattr(sys, "frozen", False):
@@ -547,8 +534,5 @@ class SetupWizard(tk.Tk):
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    if not is_admin() and sys.platform == "win32":
-        request_admin()
-    else:
-        app = SetupWizard()
-        app.mainloop()
+    app = SetupWizard()
+    app.mainloop()
