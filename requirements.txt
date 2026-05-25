@@ -10,3 +10,4 @@ psutil
 ping3
 PyGithub
 msal
+playwright

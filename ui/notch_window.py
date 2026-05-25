@@ -18,6 +18,7 @@ from modules.youtube_feed import YouTubeFeedModule
 from modules.system_monitor import SystemMonitorModule
 from modules.github_feed import GitHubFeedModule
 from modules.calendar_feed import CalendarFeedModule
+from modules.whatsapp_feed import WhatsAppFeedModule
 from modules.startup import set_startup
 from ui.settings_window import SettingsWindow
 
@@ -35,17 +36,19 @@ from ui.popups.color_picker_popup import ColorPickerPopup
 from ui.popups.ruler_popup import PixelRulerPopup
 from ui.popups.github_popup import GitHubPopup
 from ui.popups.calendar_popup import CalendarPopup
+from ui.popups.whatsapp_popup import WhatsAppPopup
 
 from ui.widgets.tool_widget import ToolWidget
 from ui.widgets.system_widget import SystemWidget
 from ui.widgets.github_widget import GitHubWidget
 from ui.widgets.calendar_widget import CalendarWidget
+from ui.widgets.whatsapp_widget import WhatsAppWidget
 from ui.icons import (
     _DEFAULT_DARK, _refresh_icon,
     _ic_youtube, _ic_calc, _ic_notes, _ic_alarm, _ic_quotes,
     _ic_todo, _ic_photo, _ic_hcalc, _ic_pokemon, _ic_stress,
     _ic_color_picker, _ic_ruler, _ic_github,
-    _ic_calendar, _ic_refresh_action,
+    _ic_calendar, _ic_refresh_action, _ic_whatsapp,
 )
 
 from config import COLOR_PRESETS, MENU_QSS, QSS_PATH, SETTINGS_PATH
@@ -66,7 +69,7 @@ class NotchWindow(QWidget):
             "calc": True, "notes": True, "alarm": True, "quotes": True,
             "todo": True, "photos": True, "hcalc": True, "pokemon": True, "stress": True,
             "system": True, "cpicker": True, "ruler": True, "github": True,
-            "calendar": True,
+            "calendar": True, "whatsapp": True,
         }
         self._current_color = "space-gray"
         self._current_mode  = "dark"
@@ -83,6 +86,7 @@ class NotchWindow(QWidget):
         self._sys_monitor = SystemMonitorModule()
         self._github_module = GitHubFeedModule()
         self._cal_module = CalendarFeedModule()
+        self._whatsapp_module = WhatsAppFeedModule()
         self._cal_statuses: dict[str, str] = {}
 
         self._clip_popup    = ClipboardPopup(self._clipboard)
@@ -99,6 +103,7 @@ class NotchWindow(QWidget):
         self._ruler_popup   = PixelRulerPopup()
         self._github_popup  = GitHubPopup(self._github_module)
         self._cal_popup     = CalendarPopup(self._cal_module)
+        self._whatsapp_popup = WhatsAppPopup(self._whatsapp_module)
         self._settings_win  = SettingsWindow(self._sections_state)
         self._sp_status    = "Não configurado"
 
@@ -143,13 +148,14 @@ class NotchWindow(QWidget):
         self._ruler_w   = ToolWidget(_ic_ruler, "Pixel Ruler")
         self._github_w  = GitHubWidget(self._github_module)
         self._cal_w     = CalendarWidget(self._cal_module)
+        self._whatsapp_w = WhatsAppWidget(self._whatsapp_module)
 
         sep1  = self._vline(); sep2  = self._vline(); sep3  = self._vline()
         sep4  = self._vline(); sep5  = self._vline(); sep6  = self._vline()
         sep7  = self._vline(); sep8  = self._vline(); sep9  = self._vline()
         sep10 = self._vline(); sep11 = self._vline(); sep12 = self._vline()
         sep13 = self._vline(); sep14 = self._vline(); sep15 = self._vline()
-        sep16 = self._vline(); sep17 = self._vline()
+        sep16 = self._vline(); sep17 = self._vline(); sep18 = self._vline()
 
         for w in (
             self._spotify_w, sep1, self._pomo_w, sep2, self._clip_w, sep3,
@@ -158,7 +164,7 @@ class NotchWindow(QWidget):
             self._photos_w, sep10, self._hcalc_w, sep11, self._pokemon_w, sep12,
             self._stress_w, sep13, self._sys_w, sep14, self._cpicker_w, sep15,
             self._ruler_w, sep16, self._github_w, sep17,
-            self._cal_w,
+            self._cal_w, sep18, self._whatsapp_w,
         ):
             row.addWidget(w)
 
@@ -181,6 +187,7 @@ class NotchWindow(QWidget):
             "ruler":     (self._ruler_w,   sep15),
             "github":    (self._github_w,  sep16),
             "calendar":  (self._cal_w,     sep17),
+            "whatsapp":  (self._whatsapp_w, sep18),
         }
 
         root.addWidget(self._pill)
@@ -216,6 +223,7 @@ class NotchWindow(QWidget):
         self._ruler_w.btn.clicked.connect(self._toggle_ruler)
         self._github_w.open_popup.connect(self._show_github)
         self._cal_w.open_popup.connect(self._show_calendar)
+        self._whatsapp_w.open_popup.connect(self._show_whatsapp)
 
         self._settings_win.section_toggled.connect(self._on_section_toggled)
         self._settings_win.general_setting_toggled.connect(self._on_general_setting_toggled)
@@ -235,6 +243,7 @@ class NotchWindow(QWidget):
         self._sys_monitor.start()
         self._github_module.start()
         self._cal_module.start()
+        self._whatsapp_module.start()
 
     # ── Slots ─────────────────────────────────────────────────────────────────
 
@@ -323,6 +332,11 @@ class NotchWindow(QWidget):
         btn = self._cal_w.btn
         pos = btn.mapToGlobal(QPoint(btn.width() // 2, btn.height() + 6))
         self._cal_popup.show_at(pos)
+
+    def _show_whatsapp(self):
+        btn = self._whatsapp_w.btn
+        pos = btn.mapToGlobal(QPoint(btn.width() // 2, btn.height() + 6))
+        self._whatsapp_popup.show_at(pos)
 
     def _show_settings(self):
         if self._settings_win.isVisible():
@@ -466,7 +480,7 @@ class NotchWindow(QWidget):
         order = [
             "spotify", "pomodoro", "clipboard", "youtube",
             "calc", "notes", "alarm", "quotes", "todo", "photos",
-            "hcalc", "pokemon", "stress", "system", "cpicker", "ruler", "github", "calendar",
+            "hcalc", "pokemon", "stress", "system", "cpicker", "ruler", "github", "calendar", "whatsapp",
         ]
         seen_visible = False
         for key in order:
@@ -541,7 +555,7 @@ class NotchWindow(QWidget):
             self._clip_popup, self._yt_popup, self._notes_popup,
             self._alarm_popup, self._quotes_popup, self._todo_popup,
             self._hcalc_popup, self._pokemon_popup, self._stress_popup,
-            self._github_popup, self._cal_popup,
+            self._github_popup, self._cal_popup, self._whatsapp_popup,
             self._settings_win,
         ):
             popup.apply_theme(bg, border, mode)
@@ -560,7 +574,7 @@ class NotchWindow(QWidget):
             self._yt_w, self._calc_w, self._notes_w, self._alarm_w,
             self._quotes_w, self._todo_w, self._photos_w, self._hcalc_w,
             self._pokemon_w, self._stress_w, self._cpicker_w, self._ruler_w,
-            self._github_w, self._cal_w,
+            self._github_w, self._cal_w, self._whatsapp_w,
         ):
             w.refresh_icons(c)
 
@@ -683,6 +697,7 @@ class NotchWindow(QWidget):
             self._alarm_popup, self._quotes_popup, self._todo_popup,
             self._slideshow, self._hcalc_popup, self._pokemon_popup,
             self._stress_popup, self._settings_win,
+            self._whatsapp_popup,
         ])
 
     def _slide_out(self):

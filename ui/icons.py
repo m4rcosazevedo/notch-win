@@ -256,6 +256,20 @@ def _ic_calendar(p: QPainter, s: int, c: QColor):
     p.drawLine(QLineF(s/2+2, 2, s/2+2, 6))
 
 
+def _ic_whatsapp(p: QPainter, s: int, c: QColor):
+    pen = QPen(c, 1.8); pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+    p.setPen(pen); p.setBrush(Qt.BrushStyle.NoBrush)
+    # Balloon shape
+    p.drawRoundedRect(QRectF(2, 4, s-4, s-8), 6, 6)
+    p.setBrush(QBrush(c)); p.setPen(Qt.PenStyle.NoPen)
+    # Triangle tail
+    p.drawPolygon(QPolygonF([QPointF(5, s-4), QPointF(9, s-10), QPointF(5, s-10)]))
+    # Phone silhouette
+    pen2 = QPen(c, 1.5); pen2.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setPen(pen2); p.setBrush(Qt.BrushStyle.NoBrush)
+    p.drawArc(QRectF(s/2-4, s/2-4, 8, 8), 40*16, 200*16)
+
+
 def _ic_refresh_action(p: QPainter, s: int, c: QColor):
     pen = QPen(c, 1.8); pen.setCapStyle(Qt.PenCapStyle.RoundCap)
     p.setPen(pen); p.setBrush(Qt.BrushStyle.NoBrush)

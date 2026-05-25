@@ -399,6 +399,18 @@ class SetupWizard(tk.Tk):
         proc.wait()
 
         if proc.returncode == 0:
+            self._log_append("\nInstalando navegadores do Playwright (Chromium)…")
+            # Tenta instalar o chromium necessário para o WhatsApp
+            proc_pw = subprocess.Popen(
+                [self._python_exe, "-m", "playwright", "install", "chromium"],
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True
+            )
+            for line in proc_pw.stdout:
+                line = line.strip()
+                if line:
+                    self._log_append(line)
+            proc_pw.wait()
+
             self.after(0, self._chk_deps.ok)
             self._install_done = True
             self.after(0, lambda: self._install_btn.configure(
