@@ -49,9 +49,16 @@ class SpotifyWidget(QWidget):
     def _connect(self):
         self._spotify.track_updated.connect(self._on_track_update)
         self._spotify.error.connect(lambda msg: self._track_artist.setText(msg[:40]))
+        self._spotify.status_changed.connect(self._on_status_changed)
         self.play_btn.clicked.connect(self._spotify.play_pause)
         self.prev_btn.clicked.connect(self._spotify.prev_track)
         self.next_btn.clicked.connect(self._spotify.next_track)
+
+    def _on_status_changed(self, status):
+        # Só mostra o status se não houver música tocando (ou se for erro/auth)
+        if not self._spotify.current.title or "Erro" in status or "Login" in status or "Autorize" in status:
+            fm = self._track_artist.fontMetrics()
+            self._track_artist.setText(fm.elidedText(status, Qt.TextElideMode.ElideRight, 155))
 
     def _on_track_update(self, info):
         fm_t = self._track_title.fontMetrics()

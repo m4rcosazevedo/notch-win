@@ -5,7 +5,7 @@ from PyQt6.QtCore import QObject, QTimer, pyqtSignal
 
 try:
     import spotipy
-    from spotipy.oauth2 import SpotifyOAuth
+    from spotipy.oauth2 import SpotifyOAuth, SpotifyOauthError
     SPOTIPY_AVAILABLE = True
 except ImportError:
     SPOTIPY_AVAILABLE = False
@@ -33,17 +33,19 @@ class SpotifyModule(QObject):
     def __init__(self):
         super().__init__()
         self._sp      = None
+        self._auth    = None
         self._current = TrackInfo()
         self._poll_timer = QTimer()
         self._poll_timer.setInterval(POLL_INTERVAL)
         self._poll_timer.timeout.connect(self._poll)
 
         if SPOTIPY_AVAILABLE:
-            self._init_client()
+            # Ao iniciar, NÃO abre o browser automaticamente para evitar loops no boot
+            self._init_client(open_browser=False)
         else:
             self.status_changed.emit("spotipy não instalado")
 
-    def _init_client(self):
+    def _init_client(self, open_browser: bool = False):
         client_id     = os.getenv("SPOTIFY_CLIENT_ID", "").strip()
         client_secret = os.getenv("SPOTIFY_CLIENT_SECRET", "").strip()
         redirect_uri  = os.getenv("SPOTIFY_REDIRECT_URI", REDIRECT_URI)
@@ -53,17 +55,29 @@ class SpotifyModule(QObject):
             return
 
         try:
-            auth = SpotifyOAuth(
+            self._auth = SpotifyOAuth(
                 client_id=client_id,
                 client_secret=client_secret,
                 redirect_uri=redirect_uri,
                 scope=SCOPE,
                 cache_path=".spotify_cache",
-                open_browser=True,
+                open_browser=open_browser,
             )
-            self._sp = spotipy.Spotify(auth_manager=auth)
-            self._poll_timer.start()
-            self.status_changed.emit("Conectando…")
+            self._sp = spotipy.Spotify(auth_manager=self._auth)
+            
+            # Verifica se temos um token em cache antes de começar o poll
+            # Isso evita disparar o fluxo de auth se não for intencional
+            token_info = self._auth.get_cached_token()
+            if token_info:
+                self._poll_timer.start()
+                self.status_changed.emit("Conectando…")
+            elif open_browser:
+                # Se foi pedido explicitamente para abrir browser (ex: clicou em salvar/conectar)
+                self._poll_timer.start()
+                self.status_changed.emit("Autorize no navegador…")
+            else:
+                self.status_changed.emit("Login necessário")
+
         except Exception as e:
             self.error.emit(f"Spotify: {e}")
             self.status_changed.emit(f"Erro: {str(e)[:60]}")
@@ -72,6 +86,7 @@ class SpotifyModule(QObject):
         """Save new credentials to .env and reinitialize the client."""
         self._poll_timer.stop()
         self._sp = None
+        self._auth = None
 
         env_path = Path(".env")
         _set_env_key(env_path, "SPOTIFY_CLIENT_ID",     client_id)
@@ -83,9 +98,12 @@ class SpotifyModule(QObject):
         os.environ["SPOTIFY_REDIRECT_URI"]  = REDIRECT_URI
 
         if SPOTIPY_AVAILABLE:
-            self._init_client()
+            # Ao reconfigurar via UI, queremos que o browser abra se necessário
+            self._init_client(open_browser=True)
 
     def _poll(self):
+        if not self._sp:
+            return
         threading.Thread(target=self._fetch, daemon=True).start()
 
     def _fetch(self):
@@ -107,6 +125,9 @@ class SpotifyModule(QObject):
                 self.track_updated.emit(info)
             if self._current.title:
                 self.status_changed.emit(f"▶ {self._current.title[:40]}")
+        except SpotifyOauthError:
+            self.status_changed.emit("Erro de autenticação")
+            self._poll_timer.stop() # Para o poll para não ficar abrindo browser ou dando erro
         except Exception:
             pass
 
