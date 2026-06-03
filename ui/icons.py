@@ -278,6 +278,23 @@ def _ic_refresh_action(p: QPainter, s: int, c: QColor):
     p.drawPolygon(QPolygonF([QPointF(s-6, 4), QPointF(s-2, 8), QPointF(s-8, 10)]))
 
 
+def _ic_spaceship(p: QPainter, s: int, c: QColor):
+    cx = s / 2
+    p.setBrush(QBrush(c)); p.setPen(Qt.PenStyle.NoPen)
+    # Nose
+    p.drawPolygon(QPolygonF([QPointF(cx, 2), QPointF(cx + 4, 9), QPointF(cx - 4, 9)]))
+    # Body
+    p.drawRoundedRect(QRectF(cx - 3.5, 8, 7, 9), 1.5, 1.5)
+    # Left fin
+    p.drawPolygon(QPolygonF([QPointF(cx - 3.5, 13), QPointF(cx - 7.5, 17), QPointF(cx - 3.5, 17)]))
+    # Right fin
+    p.drawPolygon(QPolygonF([QPointF(cx + 3.5, 13), QPointF(cx + 7.5, 17), QPointF(cx + 3.5, 17)]))
+    # Flame
+    semi = QColor(c); semi.setAlpha(130)
+    p.setBrush(QBrush(semi))
+    p.drawPolygon(QPolygonF([QPointF(cx - 2.5, 17), QPointF(cx, 21), QPointF(cx + 2.5, 17)]))
+
+
 def _ic_weather(p: QPainter, s: int, c: QColor):
     cx, cy = s / 2, s / 2
     r = s * 0.22

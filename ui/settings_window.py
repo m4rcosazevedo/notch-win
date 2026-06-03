@@ -89,7 +89,8 @@ class SettingsWindow(QWidget):
         ("github",    "🐙  GitHub"),
         ("calendar",  "🗓  Calendário"),
         ("whatsapp",  "💬  WhatsApp"),
-        ("weather",   "🌤  Clima"),
+        ("weather",    "🌤  Clima"),
+        ("spaceship",  "🚀  Navinha"),
     ]
 
     def __init__(self, sections: dict, parent=None):

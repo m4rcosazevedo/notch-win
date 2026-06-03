@@ -39,6 +39,7 @@ from ui.popups.github_popup import GitHubPopup
 from ui.popups.calendar_popup import CalendarPopup
 from ui.popups.whatsapp_popup import WhatsAppPopup
 from ui.popups.weather_popup import WeatherPopup
+from ui.popups.spaceship_popup import SpaceshipPopup
 
 from ui.widgets.tool_widget import ToolWidget
 from ui.widgets.system_widget import SystemWidget
@@ -51,7 +52,7 @@ from ui.icons import (
     _ic_youtube, _ic_calc, _ic_notes, _ic_alarm, _ic_quotes,
     _ic_todo, _ic_photo, _ic_hcalc, _ic_pokemon, _ic_stress,
     _ic_color_picker, _ic_ruler, _ic_github,
-    _ic_calendar, _ic_refresh_action, _ic_whatsapp, _ic_weather,
+    _ic_calendar, _ic_refresh_action, _ic_whatsapp, _ic_weather, _ic_spaceship,
 )
 
 from config import COLOR_PRESETS, MENU_QSS, QSS_PATH, SETTINGS_PATH
@@ -72,7 +73,7 @@ class NotchWindow(QWidget):
             "calc": True, "notes": True, "alarm": True, "quotes": True,
             "todo": True, "photos": True, "hcalc": True, "pokemon": True, "stress": True,
             "system": True, "cpicker": True, "ruler": True, "github": True,
-            "calendar": True, "whatsapp": True, "weather": True,
+            "calendar": True, "whatsapp": True, "weather": True, "spaceship": True,
         }
         self._weather_city = ""
         self._current_color = "space-gray"
@@ -108,8 +109,9 @@ class NotchWindow(QWidget):
         self._ruler_popup   = PixelRulerPopup()
         self._github_popup  = GitHubPopup(self._github_module)
         self._cal_popup     = CalendarPopup(self._cal_module)
-        self._whatsapp_popup = WhatsAppPopup(self._whatsapp_module)
-        self._weather_popup  = WeatherPopup()
+        self._whatsapp_popup  = WhatsAppPopup(self._whatsapp_module)
+        self._weather_popup   = WeatherPopup()
+        self._spaceship_popup = SpaceshipPopup()
         self._settings_win  = SettingsWindow(self._sections_state)
         self._sp_status    = "Não configurado"
 
@@ -155,7 +157,8 @@ class NotchWindow(QWidget):
         self._github_w  = GitHubWidget(self._github_module)
         self._cal_w     = CalendarWidget(self._cal_module)
         self._whatsapp_w = WhatsAppWidget(self._whatsapp_module)
-        self._weather_w  = WeatherWidget(self._weather_module)
+        self._weather_w   = WeatherWidget(self._weather_module)
+        self._spaceship_w = ToolWidget(_ic_spaceship, "Navinha")
 
         sep1  = self._vline(); sep2  = self._vline(); sep3  = self._vline()
         sep4  = self._vline(); sep5  = self._vline(); sep6  = self._vline()
@@ -164,15 +167,17 @@ class NotchWindow(QWidget):
         sep13 = self._vline(); sep14 = self._vline(); sep15 = self._vline()
         sep16 = self._vline(); sep17 = self._vline(); sep18 = self._vline()
         sep19 = self._vline()
+        sep20 = self._vline()
 
         for w in (
-            self._spotify_w, sep1, self._pomo_w, sep2, self._clip_w, sep3,
-            self._yt_w,      sep4, self._calc_w,   sep5, self._notes_w,  sep6,
-            self._alarm_w,   sep7, self._quotes_w, sep8, self._todo_w,   sep9,
-            self._photos_w, sep10, self._hcalc_w, sep11, self._pokemon_w, sep12,
-            self._stress_w, sep13, self._sys_w, sep14, self._cpicker_w, sep15,
-            self._ruler_w, sep16, self._github_w, sep17,
-            self._cal_w, sep18, self._whatsapp_w, sep19, self._weather_w,
+            self._spotify_w, sep1,  self._pomo_w,    sep2,  self._clip_w,     sep3,
+            self._yt_w,      sep4,  self._calc_w,    sep5,  self._notes_w,    sep6,
+            self._alarm_w,   sep7,  self._quotes_w,  sep8,  self._todo_w,     sep9,
+            self._photos_w,  sep10, self._hcalc_w,   sep11, self._pokemon_w,  sep12,
+            self._stress_w,  sep13, self._sys_w,     sep14, self._cpicker_w,  sep15,
+            self._ruler_w,   sep16, self._github_w,  sep17,
+            self._cal_w,     sep18, self._whatsapp_w, sep19, self._weather_w,
+            sep20, self._spaceship_w,
         ):
             row.addWidget(w)
 
@@ -195,8 +200,9 @@ class NotchWindow(QWidget):
             "ruler":     (self._ruler_w,   sep15),
             "github":    (self._github_w,  sep16),
             "calendar":  (self._cal_w,      sep17),
-            "whatsapp":  (self._whatsapp_w,  sep18),
-            "weather":   (self._weather_w,   sep19),
+            "whatsapp":   (self._whatsapp_w,   sep18),
+            "weather":    (self._weather_w,    sep19),
+            "spaceship":  (self._spaceship_w,  sep20),
         }
 
         root.addWidget(self._pill)
@@ -234,6 +240,7 @@ class NotchWindow(QWidget):
         self._cal_w.open_popup.connect(self._show_calendar)
         self._whatsapp_w.open_popup.connect(self._show_whatsapp)
         self._weather_w.open_popup.connect(self._show_weather)
+        self._spaceship_w.btn.clicked.connect(self._show_spaceship)
         self._weather_module.weather_updated.connect(self._weather_popup.update_weather)
         self._weather_module.weather_updated.connect(self._on_weather_updated)
         self._weather_module.error.connect(self._on_weather_error)
@@ -358,6 +365,11 @@ class NotchWindow(QWidget):
         btn = self._weather_w.btn
         pos = btn.mapToGlobal(QPoint(btn.width() // 2, btn.height() + 6))
         self._weather_popup.show_at(pos)
+
+    def _show_spaceship(self):
+        btn = self._spaceship_w.btn
+        pos = btn.mapToGlobal(QPoint(btn.width() // 2, btn.height() + 6))
+        self._spaceship_popup.show_at(pos)
 
     def _show_settings(self):
         if self._settings_win.isVisible():
@@ -515,7 +527,7 @@ class NotchWindow(QWidget):
             "spotify", "pomodoro", "clipboard", "youtube",
             "calc", "notes", "alarm", "quotes", "todo", "photos",
             "hcalc", "pokemon", "stress", "system", "cpicker", "ruler",
-            "github", "calendar", "whatsapp", "weather",
+            "github", "calendar", "whatsapp", "weather", "spaceship",
         ]
         seen_visible = False
         for key in order:
@@ -599,7 +611,7 @@ class NotchWindow(QWidget):
             self._alarm_popup, self._quotes_popup, self._todo_popup,
             self._hcalc_popup, self._pokemon_popup, self._stress_popup,
             self._github_popup, self._cal_popup, self._whatsapp_popup,
-            self._weather_popup, self._settings_win,
+            self._weather_popup, self._spaceship_popup, self._settings_win,
         ):
             popup.apply_theme(bg, border, mode)
 
@@ -617,7 +629,8 @@ class NotchWindow(QWidget):
             self._yt_w, self._calc_w, self._notes_w, self._alarm_w,
             self._quotes_w, self._todo_w, self._photos_w, self._hcalc_w,
             self._pokemon_w, self._stress_w, self._cpicker_w, self._ruler_w,
-            self._github_w, self._cal_w, self._whatsapp_w, self._weather_w,
+            self._github_w, self._cal_w, self._whatsapp_w,
+            self._weather_w, self._spaceship_w,
         ):
             w.refresh_icons(c)
 
@@ -740,7 +753,7 @@ class NotchWindow(QWidget):
             self._alarm_popup, self._quotes_popup, self._todo_popup,
             self._slideshow, self._hcalc_popup, self._pokemon_popup,
             self._stress_popup, self._settings_win,
-            self._whatsapp_popup, self._weather_popup,
+            self._whatsapp_popup, self._weather_popup, self._spaceship_popup,
         ])
 
     def _slide_out(self):
