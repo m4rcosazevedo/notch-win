@@ -48,6 +48,7 @@ class TodoPopup(BasePopup):
         self._scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self._scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self._scroll.setMinimumHeight(80)
         self._scroll.setMaximumHeight(360)
 
         self._list_widget = QWidget(); self._list_widget.setObjectName("todo-list")
