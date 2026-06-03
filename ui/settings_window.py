@@ -67,6 +67,7 @@ class SettingsWindow(QWidget):
     spotify_configure = pyqtSignal(str, str)   # client_id, client_secret
     github_configure  = pyqtSignal(list)       # list of {"name": ..., "token": ...}
     calendar_configure = pyqtSignal(list)      # list of accounts
+    weather_configure  = pyqtSignal(str)       # city name
 
     _SECTIONS = [
         ("spotify",   "🎵  Spotify"),
@@ -88,6 +89,7 @@ class SettingsWindow(QWidget):
         ("github",    "🐙  GitHub"),
         ("calendar",  "🗓  Calendário"),
         ("whatsapp",  "💬  WhatsApp"),
+        ("weather",   "🌤  Clima"),
     ]
 
     def __init__(self, sections: dict, parent=None):
@@ -129,6 +131,7 @@ class SettingsWindow(QWidget):
         self._stack.addWidget(self._mk_spotify_page())
         self._stack.addWidget(self._mk_github_page())
         self._stack.addWidget(self._mk_calendar_page())
+        self._stack.addWidget(self._mk_weather_page())
         v.addWidget(self._stack)
 
         outer.addWidget(self._card)
@@ -166,6 +169,7 @@ class SettingsWindow(QWidget):
             ("spotify",  "Spotify"),
             ("github",   "GitHub"),
             ("calendar", "Calendário"),
+            ("weather",  "Clima"),
         ]):
             btn = QPushButton(label)
             btn.setObjectName("settings-tab-btn")
@@ -523,6 +527,62 @@ class SettingsWindow(QWidget):
 
         sa.setWidget(content)
         return sa
+
+    # ── Weather page ──────────────────────────────────────────────────────────
+
+    def _mk_weather_page(self) -> QScrollArea:
+        sa = QScrollArea()
+        sa.setWidgetResizable(True)
+        sa.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        sa.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        sa.setFrameShape(QFrame.Shape.NoFrame)
+        sa.setObjectName("settings-scroll")
+
+        content = QWidget()
+        content.setObjectName("settings-content")
+        cv = QVBoxLayout(content)
+        cv.setContentsMargins(0, 10, 0, 14)
+        cv.setSpacing(0)
+
+        cv.addWidget(self._mk_group_label("Cidade"), 0, Qt.AlignmentFlag.AlignLeft)
+        cv.addSpacing(6)
+
+        city_fr = QWidget()
+        ch = QVBoxLayout(city_fr)
+        ch.setContentsMargins(16, 0, 16, 10)
+        ch.setSpacing(6)
+
+        self._weather_city_edit = QLineEdit()
+        self._weather_city_edit.setObjectName("settings-field-edit")
+        self._weather_city_edit.setPlaceholderText("Ex: São Paulo, Rio de Janeiro, London…")
+        self._weather_city_edit.returnPressed.connect(self._on_weather_save)
+
+        save_btn = QPushButton("Salvar Cidade")
+        save_btn.setObjectName("settings-primary-btn")
+        save_btn.clicked.connect(self._on_weather_save)
+
+        ch.addWidget(self._weather_city_edit)
+        ch.addWidget(save_btn)
+        cv.addWidget(city_fr)
+
+        cv.addWidget(self._mk_group_label("Status"), 0, Qt.AlignmentFlag.AlignLeft)
+        cv.addSpacing(4)
+
+        self._weather_status_lbl = QLabel("Nenhuma cidade configurada")
+        self._weather_status_lbl.setObjectName("settings-status-lbl")
+        self._weather_status_lbl.setContentsMargins(16, 0, 16, 0)
+        self._weather_status_lbl.setWordWrap(True)
+        cv.addWidget(self._weather_status_lbl)
+
+        cv.addStretch()
+        sa.setWidget(content)
+        return sa
+
+    def _on_weather_save(self):
+        city = self._weather_city_edit.text().strip()
+        if city:
+            self._weather_status_lbl.setText(f"Buscando dados para '{city}'…")
+            self.weather_configure.emit(city)
 
     # ── Shared block builders ─────────────────────────────────────────────────
 
@@ -945,6 +1005,14 @@ class SettingsWindow(QWidget):
 
     def update_spotify_status(self, msg: str):
         self._sp_status_lbl.setText(msg)
+
+    def update_weather_city(self, city: str):
+        if hasattr(self, "_weather_city_edit"):
+            self._weather_city_edit.setText(city)
+
+    def update_weather_status(self, msg: str):
+        if hasattr(self, "_weather_status_lbl"):
+            self._weather_status_lbl.setText(msg)
 
     def update_spotify_credentials(self, client_id: str, client_secret: str):
         """Preenche os campos de ID e Secret do Spotify."""

@@ -276,3 +276,19 @@ def _ic_refresh_action(p: QPainter, s: int, c: QColor):
     p.drawArc(QRectF(4, 4, s-8, s-8), 45*16, 270*16)
     p.setBrush(QBrush(c)); p.setPen(Qt.PenStyle.NoPen)
     p.drawPolygon(QPolygonF([QPointF(s-6, 4), QPointF(s-2, 8), QPointF(s-8, 10)]))
+
+
+def _ic_weather(p: QPainter, s: int, c: QColor):
+    cx, cy = s / 2, s / 2
+    r = s * 0.22
+    p.setBrush(QBrush(c)); p.setPen(Qt.PenStyle.NoPen)
+    p.drawEllipse(QPointF(cx, cy), r, r)
+    pen = QPen(c, 1.8); pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+    p.setPen(pen); p.setBrush(Qt.BrushStyle.NoBrush)
+    for i in range(8):
+        angle = math.radians(i * 45)
+        x1 = cx + math.cos(angle) * (r + 2.5)
+        y1 = cy + math.sin(angle) * (r + 2.5)
+        x2 = cx + math.cos(angle) * (r + 5.0)
+        y2 = cy + math.sin(angle) * (r + 5.0)
+        p.drawLine(QLineF(x1, y1, x2, y2))
